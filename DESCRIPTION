@@ -1,0 +1,17 @@
+Package: choicetools
+Type: Package
+Title: Tools for Choice Modeling, Conjoint Analysis, and MaxDiff analysis of Best-Worst Surveys
+Version: 0.0.0.9071
+Author: Chris Chapman, Eric Bahna, James Alford, Steven Ellis
+Maintainer: Chris Chapman <cchapman+choice@google.com>
+Description: Functions to read or simulate data, estimate models, perform
+    preference simulation, and plot model coefficients for choice-based conjoint (CBC)
+    and best-worst (using MaxDiff) surveys. Includes import of CBC and MaxDiff data from 
+    Sawtooth Software, and MaxDiff data from Qualtrics. Some functions are intended to be 
+    production quality (e.g., MaxDiff estimation) whereas others are experimental (e.g., 
+    attribute importance) or for didactic purposes (e.g., writing a CBC design to CSV 
+    spreadsheet). See vignettes and individual function documentation (in progress) 
+    for details. This package completely incorporates and supercedes previous "Rcbc.R" scripts.
+License: Apache 2.0
+Encoding: UTF-8
+LazyData: true
