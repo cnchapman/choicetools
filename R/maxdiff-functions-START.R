@@ -1,3 +1,6 @@
+# Copyright 2019 Google LLC.
+# SPDX-License-Identifier: Apache-2.0
+
 #############################################################
 # maxdiff-functions-START.R
 # version 0.0.9071

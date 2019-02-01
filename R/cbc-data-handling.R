@@ -1,3 +1,6 @@
+# Copyright 2019 Google LLC.
+# SPDX-License-Identifier: Apache-2.0
+
 # CBC data handling and creation routines (other than import-export!)
 
 

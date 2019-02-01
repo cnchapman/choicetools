@@ -1,3 +1,6 @@
+# Copyright 2019 Google LLC.
+# SPDX-License-Identifier: Apache-2.0
+
 # CBC experimental routines
 #   use with caution, these are alpha release functions
 #   they are a mix of useful (estimateMNLattrImpact()) and didactic (bootstrapMNLfromDesign())
