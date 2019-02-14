@@ -317,7 +317,6 @@ bootstrapMNLfromDesign <- function(df.in, cards.win, cards, trials,
 
   if (!no.output) {
     cat("Done.\n\n")
-    cat(rcbc.citation.string)
   }
   return(bs.models)
 }

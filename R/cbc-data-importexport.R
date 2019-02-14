@@ -38,15 +38,15 @@
 #   # get the dummy coded version
 #   convertSSItoDesign(att.list)
 
-convertSSItoDesign <- function(df.in,no.output=FALSE,none.col=NULL) {
+convertSSItoDesign <- function(df.in, no.output=FALSE, none.col=NULL) {
   all.mat <- NULL
   name.vec <- NULL
   for (i in 1:ncol(df.in)) {                 # iterate all cols (attributes)
     # convert attribute column to a binary matrix of what was shown
     #
     # first, create a matrix of the right size
-    att.max <- max(df.in[,i])              # assumes levels occur as 1..max
-    attmat1 <- matrix(0,nrow=length(df.in[,i]),ncol=att.max)
+    att.max <- max(df.in[ , i])              # assumes levels occur as 1..max
+    attmat1 <- matrix(0, nrow=length(df.in[,i]), ncol=att.max)
 
     # replace the matching elements with 1 to signify attribute presence
     attmat1[cbind( (1:length(df.in[,i])), df.in[,i]) ] <- 1
@@ -55,11 +55,12 @@ convertSSItoDesign <- function(df.in,no.output=FALSE,none.col=NULL) {
     all.mat <- cbind(all.mat,attmat1)
 
     # create matching column names
-    att.names <- paste(rep("ATT",att.max),i,"-",1:att.max,sep="")
+    att.prefix <- paste0("ATT", i)
+    if (!is.null(names(df.in))) {
+      att.prefix <- names(df.in)[i]
+    }
+    att.names <- paste0(rep(att.prefix, att.max), "-", 1:att.max)
     name.vec <- c(name.vec,att.names)
-  }
-  if (!no.output) {
-    cat(rcbc.citation.string)
   }
   all.mat <- data.frame(all.mat)
   names(all.mat) <- name.vec
@@ -91,7 +92,7 @@ findSSIattrs <- function(df.in) {
 # NOTE: current version assumes/requires that the design has equal trials & cards for all respondents
 #
 # PARAMETERS
-#   des.in     = the design matrix, e.g., as produced from generateMNLrandomTab()
+#   tab.in     = the design matrix, e.g., as produced from generateMNLrandomTab()
 #   filename   = the CSV to write out
 #   overwrite  = whether to overwrite filename if it exists
 #   cards      = number of concepts shown per trial
@@ -106,18 +107,18 @@ findSSIattrs <- function(df.in) {
 # OUTPUT
 #   the formatted CSV written to stdout() or filename
 #
-writeCBCdesignCSV <- function(des.in=NULL, filename="", overwrite=FALSE, cards=3, trials=12,
+writeCBCdesignCSV <- function(tab.in=NULL, filename="", overwrite=FALSE, cards=3, trials=12,
                               n.resp=NULL, start.resp=1, end.resp=NULL,
                               attr.list=NULL, lab.attrs=NULL, lab.levels=NULL,
                               delimeter="\t") {
 
   require(digest) # to create a digest hash of the design matrix so we can make sure it matches when reading choices
 
-  if (is.null(des.in)) {
+  if (is.null(tab.in)) {
     stop ("writeCBCdesign: must supply a design to write out.")
   } else {
     if (is.null(n.resp)) {
-      n.resp <- floor(nrow(des.in) / trials / cards)
+      n.resp <- floor(nrow(tab.in) / trials / cards)
     }
   }
   if (filename=="") {
@@ -133,17 +134,17 @@ writeCBCdesignCSV <- function(des.in=NULL, filename="", overwrite=FALSE, cards=3
     end.resp <- n.resp
   }
   if (is.null(attr.list)) {
-    attr.list <- findSSIattrs(des.in)
+    attr.list <- findSSIattrs(tab.in)
   }
   if (is.null(lab.attrs)) {
     lab.attrs <- paste("Attr", 1:length(attr.list))
   }
   if (is.null(lab.levels)) {
-    lab.levels <- paste("level",rep(1:length(attr.list), attr.list), "-", unlist(lapply(attr.list,seq)), sep="")
+    lab.levels <- paste0("level", rep(1:length(attr.list), attr.list), "-", unlist(lapply(attr.list,seq)))
   }
-  label.offsets <- c(0,cumsum(attr.list))[1:length(attr.list)]
+  label.offsets <- c(0, cumsum(attr.list))[1:length(attr.list)]
 
-  writeLines(paste("##############################\n","CBC response file for design: ", digest(des.in), "\n", sep=""), file.con)
+  writeLines(paste("##############################\n","CBC response file for design: ", digest(tab.in), "\n", sep=""), file.con)
 
   for (resp in start.resp:end.resp) {
     # write respondent header
@@ -153,19 +154,19 @@ writeCBCdesignCSV <- function(des.in=NULL, filename="", overwrite=FALSE, cards=3
     # write each trial
     for (trial in 1:trials) {
       # construct the lines
-      writeLines(paste("TRIAL:",trial), file.con)
+      writeLines(paste("TRIAL:", trial), file.con)
       writeLines(delimeter, sep="", file.con)
-      writeLines(paste("    ",1:cards,delimeter), sep="", file.con)
+      writeLines(paste("    ", 1:cards, delimeter), sep="", file.con)
       writeLines("", file.con)
       for (line in 1:length(attr.list)) {
-        line.text <- paste(lab.attrs[line],":",sep="")
+        line.text <- paste0(lab.attrs[line], ":")
         for (card in 1:cards) {
-          line.cardtext <- lab.levels[label.offsets[line] + des.in[(resp-1)*cards*trials+(trial-1)*cards+card, line]]
-          line.text <- paste(line.text,delimeter,line.cardtext)
+          line.cardtext <- lab.levels[label.offsets[line] + tab.in[(resp-1)*cards*trials+(trial-1)*cards+card, line] ]
+          line.text <- paste(line.text, delimeter, line.cardtext)
         }
         writeLines(line.text, file.con)
       }
-      writeLines(paste("\nCHOICE for Trial ",trial,":\n\n", sep=""), file.con)
+      writeLines(paste0("\nCHOICE for Trial ", trial, ":\n\n"), file.con)
     } # for trial
   } # for resp
   if (filename != "") {
@@ -192,7 +193,7 @@ writeCBCdesignCSV <- function(des.in=NULL, filename="", overwrite=FALSE, cards=3
 # All other content in the file (blank lines, attribute/feature lines, etc) is ignored
 #
 # PARAMETERS
-# 	des.in    = the tab-format design matrix that matches the text file
+# 	tab.in    = the tab-format design matrix that matches the text file
 #   filename  = the text file to read choices from
 #   cards     = number of concepts per CBC trial
 #   trials    = number of responses per respondent in design block
@@ -201,10 +202,10 @@ writeCBCdesignCSV <- function(des.in=NULL, filename="", overwrite=FALSE, cards=3
 # OUTPUT
 #   vector of winning cards with one entry per CBC block (trial) in the text file
 
-readCBCchoices <- function(des.in=NULL, filename="", cards=3, trials=12, cards.win=NULL, verbose=TRUE) {
+readCBCchoices <- function(tab.in=NULL, filename="", cards=3, trials=12, cards.win=NULL, verbose=TRUE) {
   require(digest)
   require(stringr)
-  if (is.null(des.in)) {
+  if (is.null(tab.in)) {
     stop("Must supply a CBC tab format design matrix that matches the input file.")
   }
   if (filename=="") {
@@ -213,11 +214,11 @@ readCBCchoices <- function(des.in=NULL, filename="", cards=3, trials=12, cards.w
 
   # preallocate matrix for choice winners, and integrate with cards.win if provided
   if (is.null(cards.win)) {
-    n.choices <- nrow(des.in) / cards
+    n.choices <- nrow(tab.in) / cards
     new.cardswin <- rep(NA, n.choices)
   } else {
     n.choices <- length(cards.win)
-    if (length(cards.win) != nrow(des.in)/cards) {
+    if (length(cards.win) != nrow(tab.in)/cards) {
       warning("Length of cards.win doesn't match length of design/cards.")
     }
     new.cardswin <- cards.win
@@ -236,8 +237,8 @@ readCBCchoices <- function(des.in=NULL, filename="", cards=3, trials=12, cards.w
     if (grepl("CBC response file for design:",lines.in[i], fixed=TRUE)) {
       # check digest
       digest.code <- str_trim(strsplit(lines.in[i], "CBC response file for design:", fixed=TRUE)[[1]][2])
-      if (digest.code != digest(des.in)) {
-        warning("Design version (digest code) in response file does not match the provided Design matrix [", digest.code, "::", digest(des.in),"].")
+      if (digest.code != digest(tab.in)) {
+        warning("Design version (digest code) in response file does not match the provided Design matrix [", digest.code, "::", digest(tab.in),"].")
       }
     }
     if (grepl("Respondent",lines.in[i])) {

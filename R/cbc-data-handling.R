@@ -54,7 +54,7 @@
 #
 
 generateMNLrandomTab <- function(attrLevels, cards=3, respondents=200,
-                                 trials=12, balanced.sample=TRUE, best.of=100,
+                                 trials=12, balanced.sample=TRUE, best.of=50,
                                  verbose=TRUE, no.output=FALSE)
 {
   cat("Searching for a balanced design ...\n")
@@ -112,8 +112,9 @@ generateMNLrandomTab <- function(attrLevels, cards=3, respondents=200,
       }
     }
   }
-  if (!no.output) {
-    cat(rcbc.citation.string)
+  rnd.tab <- data.frame(rnd.tab)
+  if (!is.null(names(attrLevels))) {
+    names(rnd.tab) <- names(attrLevels)
   }
   return(rnd.tab)
 }

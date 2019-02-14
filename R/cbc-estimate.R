@@ -434,9 +434,6 @@ estimateMNLfromDesign <- function(df.in, cards.win, cards=3,
     cat("Iteration: ", mnl.iters, "  MSS: ", mnl.ss, " Done.\n")
     cat(mnl.pws, "\n", fill=TRUE)
   }
-  if (!no.output) {
-    cat(rcbc.citation.string)
-  }
   mnl.pws <- data.frame(t(mnl.pws))
   return(mnl.pws)
 }

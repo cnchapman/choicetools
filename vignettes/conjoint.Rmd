@@ -14,8 +14,94 @@ knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>"
 )
+library(choicetools)
 ```
 
+
+
+# create the simulated data set
+
+
+
+
+```{r}
+set.seed(98103)
+
+cbc.tasks     <- 12   # trials per respondent
+cbc.concepts  <- 3     # cards per trial
+N             <- 400       # N of respondents
+
+cbc.attrs     <- c(Brand=4, Style=4, Price=5, Color=2, Size=4)
+cbc.levels    <- c("Alpha", "Bravo", "Charlie", "Delta",
+                   "Shiny", "Flat",  "Sparkly", "Odd",
+                   "$399",  "$499",  "$599",    "$799",  "$999",
+                   "Blue",  "Red",
+                   "XSmall", "Small", "Medium", "XLarge")
+```
+
+
+
+```{r, echo=FALSE}
+cbc.tab <- generateMNLrandomTab(cbc.attrs, respondents=N, 
+                                cards=cbc.concepts, trials=cbc.tasks )
+knitr::kable(head(cbc.tab))
+```
+
+
+
+
+
+
+```{r, echo=FALSE, results='asis'}
+cbc.des <- convertSSItoDesign(cbc.tab)              # convert the cards to a design-coded dummy matrix
+knitr::kable(head(cbc.des, 9))
+```
+
+
+```{r}
+writeCBCdesignCSV(head(cbc.tab, 6), cards = 3, trials = 2, 
+                  attr.list=cbc.attrs, lab.attrs=names(cbc.attrs),
+                  lab.levels = cbc.levels)
+```
+
+
+```{r}
+cbc.pws <- generateRNDpws(cbc.attrs)                # make up some zero-sum part worths
+
+cbc.win <- pickMNLwinningCards(cbc.des, cbc.pws)          
+knitr::kable(head(cbind(cbc.des, cbc.win), 9))
+```
+
+
+```{r, fig.show='hold'}
+cbc.mnl <- estimateMNLfromDesign(cbc.des, cbc.win, cards=cbc.concepts)
+plot(cbc.pws, cbc.mnl)
+```
+
+
+```{r}
+csv.filename <- "~/Downloads/testCBC.csv"
+writeCBCdesignCSV(cbc.tab, filename=csv.filename,
+                  cards=3, trials=12, 
+                  attr.list=cbc.attrs, lab.attrs=names(cbc.attrs),
+                  lab.levels = cbc.levels, overwrite=TRUE)
+
+# read the CSV and fill in all of the choices with random choices (1, 2, or 3)
+csvfile.in  <- readLines(csv.filename)
+lines.with.choices <- which(grepl("CHOICE for Trial [0-9]+", csvfile.in))
+csvfile.in[lines.with.choices] <- paste(csvfile.in[lines.with.choices], 
+                                        sample(cbc.concepts, length(lines.with.choices), replace = TRUE))
+writeLines(csvfile.in, con=csv.filename)
+
+# get those choices
+cbc.choices <- readCBCchoices(cbc.tab, filename=csv.filename, 
+                              cards=3, trials=12, verbose=FALSE)
+
+# estimate partworths (should be near 0 because all choices were random)
+cbc.mnl2 <- estimateMNLfromDesign(cbc.des, cbc.choices, cards=cbc.concepts)
+plot(cbc.pws, cbc.mnl2)
+abline(h=0)
+```
 
 
 
