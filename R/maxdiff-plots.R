@@ -382,27 +382,66 @@ plot.md.group <- function(md.define, vec.groups,
 #
 
 plot.md.relevant <- function(md.define, item.disguise=FALSE,
-                             code.rel=2, code.unimp=1)        # change these if your data are coded in reverse order, etc.
+                             code.irrel=1, code.rel=2, code.unimp=1, code.imp=2)        # change these if your data are coded in reverse order, etc.
 {
 
+  warning ("plot.md.relevant() is currently not functioning; in progress")
   if (is.null(md.define$tasks.rel) | is.null(md.define$tasks.unimp)) {
     stop("Relevant and Important tasks (tasks.rel, tasks.unimp) not defined in md.define.")
   }
+
   tasks.rel   <- md.define$tasks.rel     # checkboxes for relevant
   tasks.unimp <- md.define$tasks.unimp   # checkboxes for "important to me"
 
+  # set up DF to hold the status for each respondent on each task
+  item.status <- md.define$md.csvdata[ , tasks.rel]
+  item.status <- NA                                    # reset to NA for each respondent
+
+  item.status[md.define$md.csvdata[ , tasks.rel] == code.irrel] <- "Irrelevant"
+  item.status[md.define$md.csvdata[ , tasks.rel] == code.rel &
+                md.define$md.csvdata[ , tasks.unimp] == code.unimp] <- "Relevant.but.not.Important"
+  item.status[md.define$md.csvdata[ , tasks.rel] == code.rel &
+                md.define$md.csvdata[ , tasks.unimp] == code.imp]   <- "Relevant.and.Important"
+
+
+
+
+
+
+
+
   tasks.grid.rel   <- colMeans(na.omit(md.define$md.csvdata[ , tasks.rel]==code.rel))
   tasks.grid.irrel <- 1-tasks.grid.rel
-  tasks.grid.unimp <- colMeans(na.omit(md.define$md.csvdata[ , tasks.unimp]==code.unimp))
-  tasks.grid.imp   <- tasks.grid.rel - tasks.grid.unimp
 
-  if (item.disguise) {
+  data.unimp       <- md.define$md.csvdata[ , tasks.unimp]
+  # OBS: because an irrelevant task will be NA, we need to recode those as "important" to get proper full-proportion relative share
+  data.unimp[is.na(data.unimp)] <- code.imp
+
+  tasks.grid.unimp       <- colMeans(na.omit(data.unimp==code.unimp))
+  tasks.grid.imp         <- tasks.grid.rel - tasks.grid.unimp  # net importance, in addition to relevant
+
+
+  # tasks.grid.cond.unimp  <- colMeans(na.omit(data.unimp==code.unimp))
+  # tasks.grid.cond.imp    <- 1-tasks.grid.cond.unimp     # conditional importance, after being "relevant"
+  # tasks.grid.imp         <- tasks.grid.rel * tasks.grid.cond.imp  # net importance, in addition to relevant
+  # tasks.grid.unimp       <- 1-tasks.grid.imp
+
     tasks.grid <- data.frame(Task=paste0("i", 1:length(md.define$md.item.names)),
-                             Irrelevant=tasks.grid.irrel, Relevant.but.notImportant=tasks.grid.unimp, Important.to.Job=tasks.grid.imp )
-  } else {
-    tasks.grid <- data.frame(Task=md.define$md.item.names,
-                             Irrelevant=tasks.grid.irrel, Relevant.but.notImportant=tasks.grid.unimp, Important.to.Job=tasks.grid.imp )
-  }
+                             Relevant                = tasks.grid.rel )
+
+
+
+  # if (item.disguise) {
+  #   tasks.grid <- data.frame(Task=paste0("i", 1:length(md.define$md.item.names)),
+  #                            Irrelevant                = tasks.grid.irrel,
+  #                            Relevant.but.notImportant = tasks.grid.unimp,
+  #                            Important.to.Job          = tasks.grid.imp )
+  # } else {
+  #   tasks.grid <- data.frame(Task=md.define$md.item.names,
+  #                            Irrelevant                = tasks.grid.irrel,
+  #                            Relevant.but.notImportant = tasks.grid.unimp,
+  #                            Important.to.Job          = tasks.grid.imp )
+  # }
 
   library(reshape2)
   tasks.grid.m <- melt(tasks.grid)

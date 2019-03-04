@@ -347,7 +347,7 @@ estimateMNLfromDesign <- function(df.in, cards.win, cards=3,
 
   # make sure cards (concepts shown per trial) is in acceptable range
   if (cards < 2 || cards > 5) {
-    cat("Error. Number of concepts per trial is out of range (2-5).\n")
+    warning("Error. Number of concepts per trial is out of range (2-5).\n")
     return()
   }
 
@@ -380,7 +380,8 @@ estimateMNLfromDesign <- function(df.in, cards.win, cards=3,
         mnl.conexp[seq(4, nrow(df.in), by=cards)] +
         mnl.conexp[seq(5, nrow(df.in), by=cards)]
     } else {        ## should not occur in most CBC studies
-      cat("Error. Cards out of range (2-5).\n")
+      if (!no.output) cat("Error. Cards out of range (2-5).\n")
+      warning("Error. Cards out of range (2-5).\n")
       return()
     }
     # match the vector length
@@ -424,13 +425,13 @@ estimateMNLfromDesign <- function(df.in, cards.win, cards=3,
     # update the partworths
     mnl.pws <- mnl.pws + mnl.avdiff   # gradient = 1.0 of diff. works OK.
     mnl.iters <- mnl.iters+1
-    if (verbose) {
+    if (verbose & !no.output) {
       if (mnl.iters/20 == floor(mnl.iters/20) || mnl.iters==1) {
         cat("Iteration: ", mnl.iters, "  MSS: ", mnl.ss, "\n")
       }
     }
   }
-  if (verbose) {
+  if (verbose & !no.output) {
     cat("Iteration: ", mnl.iters, "  MSS: ", mnl.ss, " Done.\n")
     cat(mnl.pws, "\n", fill=TRUE)
   }

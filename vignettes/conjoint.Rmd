@@ -18,11 +18,53 @@ library(choicetools)
 ```
 
 
+# Introduction to Choice-Based Conjoint Analysis
 
-# create the simulated data set
+In this vignette, we demonstrate a simple choice-based conjoint (CBC) 
+analysis project, end to end. 
+
+Choice-based conjoint is a variety of conjoint analysis in which
+respondents choose among several (typically 2-4) products that differ in 
+various _attributes_ such as brand, performance, and price. Each attribute
+will have two or more _levels_, such as brand name or specific prices. A 
+complete product (aka 'concept') is a fully specified set of attributes 
+and levels. 
+
+For example, a Ford Truck with 300 HP engine at $35000 is an 
+example of a product that 'conjoins' four attributes with specific levels: 
+body style (with the level 'truck'), brand (Ford), engine size (300 HP), 
+and price ($35000).
+
+By randomizing the products' attributes and asking for repeated selection 
+of preference, we can estimate the relative value (aka _utility_) of each
+attribute level. For instance, we can determine whether the engine size is 
+more important than brand. We can also determine willingness to pay. For 
+example, we can match the utility scores for engine size to those for price, 
+to see how much more we might expect respondents to pay for a specific engine
+size.
+
+Each respondent is asked to choose among a specific number of concepts
+(products) at a time, such as their preference among 3 choices. They do this 
+repeatedly, typically 8-12 times (aka _tasks_).
+
+The CBC tools here are probably most useful for 
+_didactic_ purposes --- to demonstrate and explain conjoint analysis in a 
+classroom setting. A complete conjoint analysis study can be run with this
+code and a simple spreadsheet editing program, such as Google Sheets or
+Microsoft Office 365. (See notes at the end for details on that.) Beyond
+that, many CBC studies with simple design characteristics can be estimated 
+using the tools.
 
 
+# Setup for a CBC study
 
+In this vignette, we will imagine a hypothetical tablet device with five 
+attributes: Brand (4 choices), Style (4 choices), Price (5 price points),
+Color (2 choices), and Size (4 choices). Further, we assume that we will 
+ask for preference among 3 concepts at a time, asking each respondent to 
+judge 12 concepts (sets of concepts), with a total of N=400 respondents
+
+We set up the study by defining those parameters:
 
 ```{r}
 set.seed(98103)
@@ -32,13 +74,33 @@ cbc.concepts  <- 3     # cards per trial
 N             <- 400       # N of respondents
 
 cbc.attrs     <- c(Brand=4, Style=4, Price=5, Color=2, Size=4)
-cbc.levels    <- c("Alpha", "Bravo", "Charlie", "Delta",
-                   "Shiny", "Flat",  "Sparkly", "Odd",
-                   "$399",  "$499",  "$599",    "$799",  "$999",
-                   "Blue",  "Red",
-                   "XSmall", "Small", "Medium", "XLarge")
 ```
 
+Next, we can assign labels for the attribute levels. In the present code, 
+this is a simple list, where you should ascertain that they are ordered 
+correctly. We specify brands of "Alpha", "Bravo", and so forth; tablet 
+design styles of "Shiny", "Flat", etc; and the other attributes as follow:
+
+```{r}
+cbc.levels    <- c("Alpha", "Bravo", "Charlie", "Delta",    # Brand
+                   "Shiny", "Flat",  "Sparkly", "Odd",      # Style
+                   "$399",  "$499",  "$599",    "$799",  "$999",   # Price
+                   "Blue",  "Red",                          # Color
+                   "XSmall", "Small", "Medium", "XLarge")   # Size
+```
+
+We can create a product concept by randomly selecting one level for each of
+the attributes. Thus, we might have an Alpha brand Shiny XSmall Blue Tablet 
+for \$399, or a Charlie Flat design, Red XLarge tablet for \$599. Each task
+in the survey will present 3 such randomly constructed concepts and ask the
+respondent to select the single concept that is most preferred.
+
+Now we create an experimental design matrix for the study. The 
+design matrix specifies which randomly-generated concepts appear together.
+To ensure the design is balanced and unbiased, we want each level to appear 
+approximately the same number of times, and approximately the same number 
+in combination with every other attribute. This is done with the 
+`generalMNLrandomTab()` function:
 
 
 ```{r, echo=FALSE}
@@ -47,16 +109,31 @@ cbc.tab <- generateMNLrandomTab(cbc.attrs, respondents=N,
 knitr::kable(head(cbc.tab))
 ```
 
+This function iteratively searches randomized designs and retains a design if 
+it has improved balance vs. the previous best design. The resulting design 
+matrix specifies the level of each attribute that might be shown on the survey.
 
+In most cases, you would obtain this design matrix from the survey
+platform in which the survey was fielded. For instance, Sawtooth Software
+can export the "tab design" matrix in a compatible format. In that case, you
+do not need to generate a design matrix here; use that one instead. We 
+generate the design here in order to field a survey for didactic purposes; 
+see below.
 
-
-
+We can also convert the "tab style" layout to a fully-extended, dummy coded 
+matrix of 0 and 1 entries:
 
 ```{r, echo=FALSE, results='asis'}
-cbc.des <- convertSSItoDesign(cbc.tab)              # convert the cards to a design-coded dummy matrix
+cbc.des <- convertSSItoDesign(cbc.tab)              # dummy coded matrix
 knitr::kable(head(cbc.des, 9))
 ```
 
+In this case, we see that the first product concept will present Brand 1,
+Style 3, Price level 2, and so forth.
+
+Given the design matrix, we can see how the survey choice tasks might 
+appear (with minimal instruction). `writeCBCdesignCSV()` will produce a
+minimal "survey" in CSV format:
 
 ```{r}
 writeCBCdesignCSV(head(cbc.tab, 6), cards = 3, trials = 2, 
@@ -64,6 +141,14 @@ writeCBCdesignCSV(head(cbc.tab, 6), cards = 3, trials = 2,
                   lab.levels = cbc.levels)
 ```
 
+By "fielding" such a survey in a spreadsheet editor --- such as Google 
+Sheets or Microsoft Office --- we can easily demonstrate a CBC survey in 
+a classroom setting. (To design a better looking and more robust survey 
+for _real_ respondents, use a survey authoring platform such as Sawtooth
+Software or Qualtrics.)
+
+
+# Estimation
 
 ```{r}
 cbc.pws <- generateRNDpws(cbc.attrs)                # make up some zero-sum part worths
@@ -78,10 +163,14 @@ cbc.mnl <- estimateMNLfromDesign(cbc.des, cbc.win, cards=cbc.concepts)
 plot(cbc.pws, cbc.mnl)
 ```
 
+```{r}
+
+```
+
 
 ```{r}
 csv.filename <- "~/Downloads/testCBC.csv"
-writeCBCdesignCSV(cbc.tab, filename=csv.filename,
+writeCBCdesignCSV(cbc.tab, filename=csv.filename,   # filename="" for console
                   cards=3, trials=12, 
                   attr.list=cbc.attrs, lab.attrs=names(cbc.attrs),
                   lab.levels = cbc.levels, overwrite=TRUE)
@@ -90,18 +179,31 @@ writeCBCdesignCSV(cbc.tab, filename=csv.filename,
 csvfile.in  <- readLines(csv.filename)
 lines.with.choices <- which(grepl("CHOICE for Trial [0-9]+", csvfile.in))
 csvfile.in[lines.with.choices] <- paste(csvfile.in[lines.with.choices], 
-                                        sample(cbc.concepts, length(lines.with.choices), replace = TRUE))
+                                        sample(cbc.concepts, 
+                                               length(lines.with.choices), 
+                                               replace = TRUE))
 writeLines(csvfile.in, con=csv.filename)
 
 # get those choices
 cbc.choices <- readCBCchoices(cbc.tab, filename=csv.filename, 
                               cards=3, trials=12, verbose=FALSE)
 
+```
+
+
+```{r}
 # estimate partworths (should be near 0 because all choices were random)
-cbc.mnl2 <- estimateMNLfromDesign(cbc.des, cbc.choices, cards=cbc.concepts)
+cbc.mnl2 <- estimateMNLfromDesign(cbc.des, cbc.choices, cards=cbc.concepts,
+                                  no.output = TRUE)
 plot(cbc.pws, cbc.mnl2)
 abline(h=0)
 ```
+
+# Classroom Usage
+
+
+# References
+
 
 
 

@@ -202,7 +202,8 @@ writeCBCdesignCSV <- function(tab.in=NULL, filename="", overwrite=FALSE, cards=3
 # OUTPUT
 #   vector of winning cards with one entry per CBC block (trial) in the text file
 
-readCBCchoices <- function(tab.in=NULL, filename="", cards=3, trials=12, cards.win=NULL, verbose=TRUE) {
+readCBCchoices <- function(tab.in=NULL, filename="", cards=3, trials=12,
+                           cards.win=NULL, verbose=TRUE) {
   require(digest)
   require(stringr)
   if (is.null(tab.in)) {
