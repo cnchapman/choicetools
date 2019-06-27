@@ -199,7 +199,7 @@ estimateMNLfromDesignHB <- function(tmp.des, tmp.win,
   tmp.win2[seq(from=1, to=length(tmp.win), by=kCards)] <- tmp.wincols   # put winning card number into first row of each trial set
 
   # set up ChoiceModelR parameters
-  tmp.des2 <- cbind(tmp.ids, tmp.set, tmp.seq, tmp.tab, tmp.win2)    # ids, design, and winners in ChoiceModelR format
+  tmp.des2 <- cbind(tmp.ids, tmp.set, tmp.seq, tmp.des, tmp.win2)    # ids, design, and winners in ChoiceModelR format
   tmp.coding <- rep(0, ncol(tmp.des))                                         # 0 = categorical coding for the attribute
   tmp.mcmc <- list(R = mcmcIters, use = mcmcIters*pitersUsed)
   tmp.opt <- list (none=none, save=drawKeep, keep=drawKeepK)

@@ -58,7 +58,7 @@ using the tools.
 
 # Setup for a CBC study
 
-In this vignette, we will imagine a hypothetical tablet device with five 
+In this vignette, we will imagine a hypothetical USB flash drive with five 
 attributes: Brand (4 choices), Style (4 choices), Price (5 price points),
 Color (2 choices), and Size (4 choices). Further, we assume that we will 
 ask for preference among 3 concepts at a time, asking each respondent to 
@@ -78,20 +78,20 @@ cbc.attrs     <- c(Brand=4, Style=4, Price=5, Color=2, Size=4)
 
 Next, we can assign labels for the attribute levels. In the present code, 
 this is a simple list, where you should ascertain that they are ordered 
-correctly. We specify brands of "Alpha", "Bravo", and so forth; tablet 
+correctly. We specify brands of "Alpha", "Bravo", and so forth; hypothetical  
 design styles of "Shiny", "Flat", etc; and the other attributes as follow:
 
 ```{r}
 cbc.levels    <- c("Alpha", "Bravo", "Charlie", "Delta",    # Brand
                    "Shiny", "Flat",  "Sparkly", "Odd",      # Style
-                   "$399",  "$499",  "$599",    "$799",  "$999",   # Price
+                   "$9",  "$14",  "$19",  "$24",  "$29",    # Price
                    "Blue",  "Red",                          # Color
-                   "XSmall", "Small", "Medium", "XLarge")   # Size
+                   "8GB", "16GB", "32GB", "64GB")           # Size
 ```
 
 We can create a product concept by randomly selecting one level for each of
-the attributes. Thus, we might have an Alpha brand Shiny XSmall Blue Tablet 
-for \$399, or a Charlie Flat design, Red XLarge tablet for \$599. Each task
+the attributes. Thus, we might have an Alpha brand Shiny 16GB Blue USB drive 
+for \$19, or a Charlie Flat design, Red 64GB device for \$9. Each task
 in the survey will present 3 such randomly constructed concepts and ask the
 respondent to select the single concept that is most preferred.
 
@@ -128,7 +128,7 @@ cbc.des <- convertSSItoDesign(cbc.tab)              # dummy coded matrix
 knitr::kable(head(cbc.des, 9))
 ```
 
-In this case, we see that the first product concept will present Brand 1,
+In this case, we see that the first product concept will present Brand 2,
 Style 3, Price level 2, and so forth.
 
 Given the design matrix, we can see how the survey choice tasks might 
@@ -145,28 +145,52 @@ By "fielding" such a survey in a spreadsheet editor --- such as Google
 Sheets or Microsoft Office --- we can easily demonstrate a CBC survey in 
 a classroom setting. (To design a better looking and more robust survey 
 for _real_ respondents, use a survey authoring platform such as Sawtooth
-Software or Qualtrics.)
+Software or Qualtrics.) We use the `digest` package (Eddelbuettel et al, 2018) 
+to include a hash value for the design matrix as noted at the top of the CSV. 
+This helps ensure that the collected data match the design matrix when choices 
+are imported.
 
 
-# Estimation
+# Aggregate Logit Model Estimation
 
+The simplest form of estimation is an aggregate multinomial logit model (MNL). This 
+estimates a simple multinomial (choice among options) model for the entire sample. 
+The estimated coefficients are known as *part worths* (``part'' because the values
+for multiple attributes are added together for the full utility of a concept). In 
+an MNL model, the part worths sum to zero across the levels of each attribute.
+
+To see how this works, we use `generateRNDpws()` to make up some zero-sum part worths, 
+and then `pickMNLwinningCards()` to find the preferred concept based on those
+part worths for each choice set:
 ```{r}
 cbc.pws <- generateRNDpws(cbc.attrs)                # make up some zero-sum part worths
 
 cbc.win <- pickMNLwinningCards(cbc.des, cbc.pws)          
-knitr::kable(head(cbind(cbc.des, cbc.win), 9))
+knitr::kable(head(cbind(cbc.win, cbc.des), 9))
 ```
+In the first set of choices -- the first three rows -- the second concept 
+(Brand 1, Style 2, Price 3, etc.) was preferred and selected in the `cbc.win` 
+vector. 
 
+Now we estimate the part worths based on those ``observed'' choices, and plot
+those estimates against the original part worths. We see a near perfect recovery 
+of the part worth values (aside from minor rescaling of the magnitude):
 
 ```{r, fig.show='hold'}
 cbc.mnl <- estimateMNLfromDesign(cbc.des, cbc.win, cards=cbc.concepts)
 plot(cbc.pws, cbc.mnl)
 ```
 
-```{r}
+# Write CSV Structure and Read Choices from It
 
-```
+Of course it is more interesting to collect data from real individuals! Most 
+of the time one would do that by fielding a survey online using survey authoring
+tools such as Sawtooth Software or Qualtrics. Such tools are able to 
+display CBC tasks in a friendly way and require users to make tradeoffs among
+concepts.
 
+For this vignette, however, we will write out the CSV file, and then read 
+the data back:
 
 ```{r}
 csv.filename <- "~/Downloads/testCBC.csv"
@@ -175,22 +199,36 @@ writeCBCdesignCSV(cbc.tab, filename=csv.filename,   # filename="" for console
                   attr.list=cbc.attrs, lab.attrs=names(cbc.attrs),
                   lab.levels = cbc.levels, overwrite=TRUE)
 
-# read the CSV and fill in all of the choices with random choices (1, 2, or 3)
+# read the CSV 
 csvfile.in  <- readLines(csv.filename)
+```
+
+If respondents had filled in choices, we could estimate the MNL model from them.
+Because they have not, we will make some random choices and rewrite the CSV:
+```{r}
+# Fill in all of the choices with random choices (1, 2, or 3)
 lines.with.choices <- which(grepl("CHOICE for Trial [0-9]+", csvfile.in))
 csvfile.in[lines.with.choices] <- paste(csvfile.in[lines.with.choices], 
                                         sample(cbc.concepts, 
                                                length(lines.with.choices), 
                                                replace = TRUE))
 writeLines(csvfile.in, con=csv.filename)
-
+```
+Now we have a CSV that might have been completed by respondents (if they
+were answering randomly). We read those data using `readCBCchoices()` with
+the design matrix (`cbc.tab`) and the filename. `readCBCchoices()` will check
+that the design hash for the file matches the design matrix that we give it.
+```{r}
 # get those choices
 cbc.choices <- readCBCchoices(cbc.tab, filename=csv.filename, 
                               cards=3, trials=12, verbose=FALSE)
 
 ```
 
-
+We use `estimateMNLfromDesign()` to estimate the part worths from the observed
+data. We plot those and see that -- because the choices were assigned randomly --
+the estimates are mostly close to zero, and have no correspondence to the 
+original part worths:
 ```{r}
 # estimate partworths (should be near 0 because all choices were random)
 cbc.mnl2 <- estimateMNLfromDesign(cbc.des, cbc.choices, cards=cbc.concepts,
@@ -199,63 +237,98 @@ plot(cbc.pws, cbc.mnl2)
 abline(h=0)
 ```
 
+It is important to note that the `estimateMNLfromDesign()` function is not
+intended for production usage; it is primarily a didactic function whose 
+NR algorithm is easy to explain (and to read in code). For actual analyses,
+we would use hierarchical Bayes estimation instead (Rossi, Allenby, and 
+McCulloch, 2005).
+
+# Hierarchical Bayes estimation
+
+Hierachical Bayes estimation is typically used for choice models to estimate 
+a mixed effects model. The ``upper level'' comprises fixed effects estimates
+for the sample, while the ``lower level'' represents estimates for each 
+individual respondent within the overall distribution. The individual-level 
+estimates are based on the group of multiple observations for each respondent.
+
+If you fielded the survey online, you would commonly receive responses as 1/0 
+for each row, indicating whether the item was chosen (the same as in our 
+`cbc.win` vector above). We have a vector that simply indicates which row was 
+chosen, so we expand that to a 1/0 vector of the same length as the number of 
+rows in the design matrix. The function `expandCBCwinners()` does this, and 
+optionally can fill any missing data with random values (for didactic or 
+demonstration purposes):
+```{r}
+cbc.chosen <- expandCBCwinners(cbc.choices)
+```
+
+Now we estimate the hierarchical Bayes model, with the function 
+`estimateMNLfromDesignHB()`. This function is primarily a wrapper that 
+calls `ChoiceModelR::choicemodelr()` (Sermas, 2012) and simplifies 
+the data setup. Note that we use the ``tab'' format for the design matrix 
+(as opposed to the 1/0 dummy coded, expanded version). For speed, 
+we specify 2000 total MCMC draws; in practice, this would typically be 
+10000s.
+```{r}
+cbc.hb <- estimateMNLfromDesignHB(tmp.des=cbc.tab, tmp.win=cbc.chosen, 
+                                  kCards=cbc.concepts, kTrials=cbc.tasks,
+                                  kResp=N , mcmcIters=2000)
+```
+
+
+The MCMC process shows a trace plot (closely centered on 0, 
+as we would expect for these random data). The estimated part worths may be
+extracted from the HB model with the `extractHBbetas()` function. We do
+this, add respondent IDs, and plot the values. We can plot each respondent
+as a separate point to see the distribution of estimates (Wickham, 2016; 
+Wilke, 2018):
+
+```{r}
+cbc.est    <- data.frame(extractHBbetas(cbc.hb, cbc.attrs))
+cbc.est$ID <- 1:nrow(cbc.est)
+
+library(ggplot2)
+library(reshape2)
+cbc.m <- melt(cbc.est, id.vars = "ID")
+
+library(ggridges)
+ggplot(data=cbc.m, aes(x=value, y=variable, group=variable)) +
+      geom_density_ridges(scale=0.9, alpha=0, jittered_points=TRUE,
+                          rel_min_height=0.005,
+                          position="points_sina",
+                          point_color = "blue", point_alpha=1/sqrt(N),
+                          point_size=2.5) +
+        ylab("Item") + xlab("Relative preference (blue=individuals, red=mean)") +
+        ggtitle("Preference estimates: Overall + Individual level")
+```
+
+The `ggridges` plot is very useful to demonstrate the distribution of individuals
+in HB estimates. In this case, we see that they are distributed around 0, as
+expected for random data.
+
+
 # Classroom Usage
+
+
+# Features Beyond CBC
 
 
 # References
 
 
+# References
 
+Eddelbuettel, Dirk, with contributions by Antoine Lucas, Jarek Tuszynski, Henrik Bengtsson, Simon Urbanek,
+  Mario Frasca, Bryan Lewis, Murray Stokely, Hannes Muehleisen, Duncan Murdoch, Jim Hester, Wush Wu, Qiang
+  Kou, Thierry Onkelinx, Michel Lang, Viliam Simko, Kurt Hornik and Radford Neal. (2018). digest: Create
+  Compact Hash Digests of R Objects. R package version 0.6.18. https://CRAN.R-project.org/package=digest
+  
+Rossi, PE, Allenby, GM, and McCulloch, RE (2005). *Bayesian Statistics and Marketing*. New York: Wiley.
 
-# In progress.  Everything below is default RStudio boilerplate.
+Sermas, Ryan (2012). ChoiceModelR: Choice Modeling in R. R package version 1.2.
+  https://CRAN.R-project.org/package=ChoiceModelR
+  
+Wickham, H. (2016). ggplot2: Elegant Graphics for Data Analysis. New York: Springer-Verlag.
 
-
-
-
-Vignettes are long form documentation commonly included in packages. Because they are part of the distribution of the package, they need to be as compact as possible. The `html_vignette` output type provides a custom style sheet (and tweaks some options) to ensure that the resulting html is as small as possible. The `html_vignette` format:
-
-- Never uses retina figures
-- Has a smaller default figure size
-- Uses a custom CSS stylesheet instead of the default Twitter Bootstrap style
-
-## Vignette Info
-
-Note the various macros within the `vignette` section of the metadata block above. These are required in order to instruct R how to build the vignette. Note that you should change the `title` field and the `\VignetteIndexEntry` to match the title of your vignette.
-
-## Styles
-
-The `html_vignette` template includes a basic CSS theme. To override this theme you can specify your own CSS in the document metadata as follows:
-
-    output: 
-      rmarkdown::html_vignette:
-        css: mystyles.css
-
-## Figures
-
-The figure sizes have been customised so that you can easily put two images side-by-side. 
-
-```{r, fig.show='hold'}
-plot(1:10)
-plot(10:1)
-```
-
-You can enable figure captions by `fig_caption: yes` in YAML:
-
-    output:
-      rmarkdown::html_vignette:
-        fig_caption: yes
-
-Then you can use the chunk option `fig.cap = "Your figure caption."` in **knitr**.
-
-## More Examples
-
-You can write math expressions, e.g. $Y = X\beta + \epsilon$, footnotes^[A footnote here.], and tables, e.g. using `knitr::kable()`.
-
-```{r, echo=FALSE, results='asis'}
-knitr::kable(head(mtcars, 10))
-```
-
-Also a quote using `>`:
-
-> "He who gives up [code] safety for [code] speed deserves neither."
-([via](https://twitter.com/hadleywickham/status/504368538874703872))
+Wilke, CO. (2018). ggridges: Ridgeline Plots in 'ggplot2'. R package version 0.5.1.
+  https://CRAN.R-project.org/package=ggridges

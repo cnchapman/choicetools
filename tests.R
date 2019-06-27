@@ -1,6 +1,6 @@
 # tests for choicetools
 
-
+library(choicetools)
 
 ##### IN PROGRESS TESTS
 
