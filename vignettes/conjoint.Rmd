@@ -2,7 +2,8 @@
 title: "Choice-based conjoint analysis demonstration"
 author: "Chris Chapman"
 date: "`r Sys.Date()`"
-output: rmarkdown::html_vignette
+# output: rmarkdown::html_vignette
+output: pdf_document
 vignette: >
   %\VignetteIndexEntry{Choice-based conjoint analysis}
   %\VignetteEngine{knitr::rmarkdown}
@@ -28,7 +29,7 @@ respondents choose among several (typically 2-4) products that differ in
 various _attributes_ such as brand, performance, and price. Each attribute
 will have two or more _levels_, such as brand name or specific prices. A 
 complete product (aka 'concept') is a fully specified set of attributes 
-and levels. 
+and levels (Chapman & Feit, 2019).
 
 For example, a Ford Truck with 300 HP engine at $35000 is an 
 example of a product that 'conjoins' four attributes with specific levels: 
@@ -128,7 +129,8 @@ cbc.des <- convertSSItoDesign(cbc.tab)              # dummy coded matrix
 knitr::kable(head(cbc.des, 9))
 ```
 
-In this case, we see that the first product concept will present Brand 2,
+
+In this case, we see that the first product concept is a combination of Brand 2,
 Style 3, Price level 2, and so forth.
 
 Given the design matrix, we can see how the survey choice tasks might 
@@ -155,7 +157,7 @@ are imported.
 
 The simplest form of estimation is an aggregate multinomial logit model (MNL). This 
 estimates a simple multinomial (choice among options) model for the entire sample. 
-The estimated coefficients are known as *part worths* (``part'' because the values
+The estimated coefficients are known as *part worths* ("part" because the values
 for multiple attributes are added together for the full utility of a concept). In 
 an MNL model, the part worths sum to zero across the levels of each attribute.
 
@@ -168,11 +170,12 @@ cbc.pws <- generateRNDpws(cbc.attrs)                # make up some zero-sum part
 cbc.win <- pickMNLwinningCards(cbc.des, cbc.pws)          
 knitr::kable(head(cbind(cbc.win, cbc.des), 9))
 ```
+
 In the first set of choices -- the first three rows -- the second concept 
 (Brand 1, Style 2, Price 3, etc.) was preferred and selected in the `cbc.win` 
 vector. 
 
-Now we estimate the part worths based on those ``observed'' choices, and plot
+Now we estimate the part worths based on those "observed" choices, and plot
 those estimates against the original part worths. We see a near perfect recovery 
 of the part worth values (aside from minor rescaling of the magnitude):
 
@@ -246,46 +249,57 @@ McCulloch, 2005).
 # Hierarchical Bayes estimation
 
 Hierachical Bayes estimation is typically used for choice models to estimate 
-a mixed effects model. The ``upper level'' comprises fixed effects estimates
-for the sample, while the ``lower level'' represents estimates for each 
+a mixed effects model. The *upper level* comprises fixed effects estimates
+for the sample, while the *lower level* represents estimates for each 
 individual respondent within the overall distribution. The individual-level 
 estimates are based on the group of multiple observations for each respondent.
 
 If you fielded the survey online, you would commonly receive responses as 1/0 
-for each row, indicating whether the item was chosen (the same as in our 
-`cbc.win` vector above). We have a vector that simply indicates which row was 
-chosen, so we expand that to a 1/0 vector of the same length as the number of 
-rows in the design matrix. The function `expandCBCwinners()` does this, and 
-optionally can fill any missing data with random values (for didactic or 
-demonstration purposes):
-```{r}
-cbc.chosen <- expandCBCwinners(cbc.choices)
-```
+for each row, indicating whether the item was chosen (similar to our 
+`cbc.win` vector above). For exposition here, we will use the winning cards
+that were selected on the basis of our simulated part worths, given in `cbc.win`,
+but add a degree of randomness.
 
-Now we estimate the hierarchical Bayes model, with the function 
+To estimate the hierarchical Bayes model, use the function 
 `estimateMNLfromDesignHB()`. This function is primarily a wrapper that 
-calls `ChoiceModelR::choicemodelr()` (Sermas, 2012) and simplifies 
-the data setup. Note that we use the ``tab'' format for the design matrix 
-(as opposed to the 1/0 dummy coded, expanded version). For speed, 
-we specify 2000 total MCMC draws; in practice, this would typically be 
-10000s.
+simplifies the data setup and calls `ChoiceModelR::choicemodelr()` 
+(Sermas, 2012). Note that we use the *tab* format for the design matrix 
+(as opposed to the 1/0 dummy coded, expanded version). 
+
+This is an iterative MCMC estimation routine. For speed, 
+we specify 2000 total MCMC draws (burn-in and posterior); in practice, 
+this would typically be 10000s, as the MCMC process will need a longer 
+burn-in period for convergence. 
+`estimateMNLfromDesignHB()` includes optional arguments to specify the 
+proportion of the MCMC chain that is regarded as posterior 
+draws  (`pitersUsed`), whether to save the draws for each respondent (`drawKeep`)
+and the proportion of posterior draws to retain (skipping them in the sequence
+to avoid autocorrelation; `drawKeepK`). 
 ```{r}
-cbc.hb <- estimateMNLfromDesignHB(tmp.des=cbc.tab, tmp.win=cbc.chosen, 
+# replace 30% of the perfect "winning" vector with random draws
+cbc.win2    <- cbc.win
+cbc.replace <- sample(length(cbc.win2), length(cbc.win2)*0.3)  # replace these
+cbc.win2[cbc.replace] <- sample(3, length(cbc.replace), replace=TRUE)
+
+# estimate using the design and winning cards
+cbc.hb <- estimateMNLfromDesignHB(tmp.des=cbc.tab, tmp.win=cbc.win2, 
                                   kCards=cbc.concepts, kTrials=cbc.tasks,
                                   kResp=N , mcmcIters=2000)
 ```
 
-
-The MCMC process shows a trace plot (closely centered on 0, 
-as we would expect for these random data). The estimated part worths may be
-extracted from the HB model with the `extractHBbetas()` function. We do
-this, add respondent IDs, and plot the values. We can plot each respondent
-as a separate point to see the distribution of estimates (Wickham, 2016; 
-Wilke, 2018):
+The MCMC process shows a trace plot of the estimates for each attribute. 
+The estimated part worths may be
+extracted from the HB model with the `extractHBbetas()` function. We extract those, 
+add respondent IDs, and plot the values (Wickham, 2016; 
+Wilke, 2018). We can plot each respondent
+as a separate faint point, allowing us to see the distribution of estimates; 
+this is especially helpful when there are groups of respondents who show differing
+sets of preferences:
 
 ```{r}
-cbc.est    <- data.frame(extractHBbetas(cbc.hb, cbc.attrs))
-cbc.est$ID <- 1:nrow(cbc.est)
+cbc.est        <- data.frame(extractHBbetas(cbc.hb, cbc.attrs))
+names(cbc.est) <- cbc.levels
+cbc.est$ID     <- 1:nrow(cbc.est)
 
 library(ggplot2)
 library(reshape2)
@@ -298,13 +312,45 @@ ggplot(data=cbc.m, aes(x=value, y=variable, group=variable)) +
                           position="points_sina",
                           point_color = "blue", point_alpha=1/sqrt(N),
                           point_size=2.5) +
-        ylab("Item") + xlab("Relative preference (blue=individuals, red=mean)") +
-        ggtitle("Preference estimates: Overall + Individual level")
+        ylab("Item") + xlab("Relative preference (blue circles=individuals)") +
+        ggtitle("Preference estimates: Distribution of individuals")
+
 ```
 
 The `ggridges` plot is very useful to demonstrate the distribution of individuals
-in HB estimates. In this case, we see that they are distributed around 0, as
-expected for random data.
+in HB estimates. If these were real data, we could interpret them as showing a 
+strong preference for Sparkly design, Red color, $14 price point, and so forth.
+
+Estimated share of preference (aka "market share") may be estimated using 
+the `marketSim()` function. Suppose we wanted to assess preference for a 
+Flat 8GB Blue drive at \$9 from Alpha, vs. an Odd 64GB Red drive at \$24 
+from Bravo. We specify the sets of attributes for each product and compare 
+them. In this case, we will use first choice preference, where
+each individual is regarded as "purchasing" the item with highest preference; 
+other options in `marketSim()` include share of preference at the individual
+level, and first choice with randomization:
+
+```{r}
+# cbc.levels    <- c("Alpha", "Bravo", "Charlie", "Delta",    # Brand 1-4
+#                    "Shiny", "Flat",  "Sparkly", "Odd",      # Style 5-8
+#                    "$9",  "$14",  "$19",  "$24",  "$29",    # Price 9-13
+#                    "Blue",  "Red",                          # Color 14-15
+#                    "8GB", "16GB", "32GB", "64GB")           # Size 16-19
+
+prod1 <- c(6, 16, 14,  9, 1)     # Flat 8GB Blue $9 Alpha
+prod2 <- c(8, 19, 15, 12, 2)     # Odd 64GB Red $24 Bravo
+usb.pref  <- marketSim(
+  cbc.est,                    # matrix of individual-level utilities
+  list(prod1, prod2),         # list of products to compare
+  use.none=FALSE,             # we have no "none" column
+  style="first")              # estimate share by first-choice approach
+
+# see the overall preference share for the two products
+colMeans(usb.pref)
+```
+Between just these two products, we estimate that 
+`r round(colMeans(usb.pref)[1]*100)`% of respondents would prefer product 1, 
+the $9 flat 8GB drive from Alpha.
 
 
 # Classroom Usage
@@ -317,6 +363,9 @@ expected for random data.
 
 
 # References
+
+Chapman, CN, and Feit, EMF (2019). *R for Marketing Research and Analytics, 2nd edition*. 
+Chapter 13: Choice Modeling. New York: Springer.
 
 Eddelbuettel, Dirk, with contributions by Antoine Lucas, Jarek Tuszynski, Henrik Bengtsson, Simon Urbanek,
   Mario Frasca, Bryan Lewis, Murray Stokely, Hannes Muehleisen, Duncan Murdoch, Jim Hester, Wush Wu, Qiang
