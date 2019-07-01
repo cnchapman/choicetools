@@ -78,10 +78,8 @@ Design Matrix
 ========================
 class: small-code
 
-Each level should appear
-approximately the same number of times, alone and
-in combination with every other attribute. This is done with
-**`generalMNLrandomTab()`**:
+Levels should appear roughly the same number of times with every
+other level. **`generalMNLrandomTab()`** does so:
 
 
 ```r
@@ -104,16 +102,14 @@ knitr::kable(head(cbc.tab, 3))  # first choice trial, 3 products
 |     1|     2|     3|     1|    4|
 |     3|     1|     5|     2|    1|
 
-In most cases, you would obtain the design matrix from a survey authoring
-platform.
+(Usually you obtain the design from a survey authoring platform.)
 
 
 Dummy Coded Design Matrix
 ==============================
 class: small-code
 
-We may convert the "tab style" layout to a dummy coded
-matrix of 0 and 1:
+We can convert the layout to a dummy coded matrix:
 
 
 | Brand-1| Brand-2| Brand-3| Brand-4| Style-1| Style-2| Style-3| Style-4| Price-1| Price-2| Price-3| Price-4| Price-5| Color-1| Color-2| Size-1| Size-2| Size-3| Size-4|
@@ -125,23 +121,22 @@ matrix of 0 and 1:
 |       0|       1|       0|       0|       1|       0|       0|       0|       0|       1|       0|       0|       0|       1|       0|      0|      0|      0|      1|
 |       1|       0|       0|       0|       0|       1|       0|       0|       0|       0|       0|       0|       1|       1|       0|      1|      0|      0|      0|
 
-The first product concept (first row) is a combination of Brand 2,
-Style 3, Price level 2, and so forth.
+The first product (first row) has Brand 2, Style 3, Price level 2, and so forth.
 
 
 Survey Output as CSV
 ==============================
 class: small-code
 
-Given a design matrix, **`writeCBCdesignCSV()`** produces a
-minimal "survey" in CSV format. This is easy to "field" in a classroom.
+Given a design, **`writeCBCdesignCSV()`** produces a
+minimal "survey" in CSV format. This is easy to use in a classroom.
 
-To ensure the data in the CSV match the design matrix, **`digest`** (Eddelbuettel et al, 2018)
-adds a hash value for the design matrix.
+To ensure CSV data match the design, **`digest`** (Eddelbuettel et al, 2018)
+adds a hash value for the design.
 
 
 ```r
-writeCBCdesignCSV(head(cbc.tab, 3), cards=3, trials=1,
+writeCBCdesignCSV(head(cbc.tab, 3), cards=cbc.concepts, trials=1,
                   attr.list=cbc.attrs, lab.attrs=names(cbc.attrs),
                   lab.levels = cbc.levels)
 #> ##############################
@@ -167,15 +162,14 @@ Creating Simulated Preference Data
 class: small-code
 
 The simplest model is an aggregate multinomial logit model (MNL).
-The coefficients are known as *part worths*. These sum to zero across levels
-of each attribute.  **`generateRNDpws()`**  simulates part worths.
+The coefficients are *part worths*. These sum to zero across levels
+of attributes.  **`generateRNDpws()`**simulates part worths.
 
-**`pickMNLwinningCards()`** uses part worths to find a preferred concept for
-each task:
+**`pickMNLwinningCards()`** finds a winner for each task:
 
 ```r
 cbc.pws <- generateRNDpws(cbc.attrs)    # make up some zero-sum part worths
-cbc.win <- pickMNLwinningCards(cbc.des, cbc.pws)  # winning cards
+cbc.win <- pickMNLwinningCards(cbc.des, cbc.pws)  # winning cards with them
 #> Processing trial:  2000 
 #> Processing trial:  4000
 knitr::kable(head(cbind(cbc.win, cbc.des), 3))
@@ -212,49 +206,47 @@ $$
 \frac{pref(A)}{pref(A)+pref(B)} = \frac{e^{\sum{PW_A}}}{e^{\sum{PW_A}}+e^{\sum{PW_B}}}
 $$
 
-For conceptual simplicity, we leave out the intercepts and error terms.
+(For simplicity, we omit intercepts and error terms.)
 
 
 Aggregate MNL Estimation
 =================================
 class: small-code
 
-Now we estimate the part worths based on those "observed" choices:
+<small>
+Eestimate part worths based on "observed" choices:
 
 ```r
 cbc.mnl <- estimateMNLfromDesign(cbc.des, cbc.win, cards=cbc.concepts)
 ```
 
-We plot those against the original part worths and see near perfect recovery:
+Plot those vs. original part worths. There is near perfect recovery:
 
 ```r
 plot(cbc.pws, cbc.mnl)
 ```
 
 ![plot of chunk unnamed-chunk-8](conjoint-slides-figure/unnamed-chunk-8-1.png)
-
+</small>
 
 Write CSV Structure and Read Choices from It
 ========================================================
 class: small-code
 
-It is more interesting to collect real data! Most
-of the time one would do that by fielding a survey online using survey authoring
+It is more interesting to collect real data. Usually one would use survey authoring
 tools such as **Sawtooth Software** or **Qualtrics**. These platforms
 display CBC tasks in a suitable format for respondents.
 
-For this vignette, we write out the CSV file, and then read the data:
+For this vignette, we write out the CSV file. We will later read the data as if
+responses had been given there.
 
 
 ```r
 csv.filename <- "~/Downloads/testCBC.csv"
 writeCBCdesignCSV(cbc.tab, filename=csv.filename,   # filename="" for console
-                  cards=3, trials=12,
+                  cards=cbc.concepts, trials=cbc.tasks,
                   attr.list=cbc.attrs, lab.attrs=names(cbc.attrs),
                   lab.levels = cbc.levels, overwrite=TRUE)
-
-# read the CSV
-csvfile.in  <- readLines(csv.filename)
 ```
 
 
@@ -262,11 +254,13 @@ CSV with Random Choices
 ==========================
 class: small-code
 
-If respondents had filled in choices, we could estimate the MNL model from them.
-Because they have not, we make some random choices and rewrite the CSV:
+If respondents had filled in choices, we could estimate the MNL model.
+Instead, we make random choices and rewrite the CSV:
 
 ```r
-# Fill in all of the choices with random choices (1, 2, or 3)
+# read the CSV
+csvfile.in  <- readLines(csv.filename)
+# make random choices (1, 2, or 3)
 lines.with.choices <- which(grepl("CHOICE for Trial [0-9]+", csvfile.in))
 csvfile.in[lines.with.choices] <- paste(csvfile.in[lines.with.choices],
                                         sample(cbc.concepts,
@@ -274,14 +268,14 @@ csvfile.in[lines.with.choices] <- paste(csvfile.in[lines.with.choices],
                                                replace = TRUE))
 writeLines(csvfile.in, con=csv.filename)
 ```
-Now we have a CSV that might have been completed by respondents (if they
-were answering randomly). We read those data for the design matrix (`cbc.tab`)
-using **`readCBCchoices()`**:
+Read the CSV using **`readCBCchoices()`**, including the
+design matrix (cbc.tab):
 
 ```r
 # get those choices
 cbc.choices <- readCBCchoices(cbc.tab, filename=csv.filename,
-                              cards=3, trials=12, verbose=FALSE)
+                              cards=cbc.concepts, trials=cbc.tasks,
+                              verbose=FALSE)
 ```
 
 
@@ -289,13 +283,12 @@ Estimation of Random Choice Data
 ===================================
 class: small-code
 
-**`estimateMNLfromDesign()`** estimates part worths from
-data. It is primarily for didactic purposes, with an easy-to-understand
-gradient implementation. Hierarchical Bayes estimation (*next slide*) is better
-for production work.
+<small>
+**`estimateMNLfromDesign()`** estimates part worths. It is for didactic
+purposes, using gradient descent. HB (*next slide*) is for production.
 
-We plot the part worths and see (for these random data) that estimates are
-mostly near zero, with no correspondence to the original part worths:
+For the random data, part worths have no
+correspondence to the original values:
 
 ```r
 cbc.mnl2 <- estimateMNLfromDesign(cbc.des, cbc.choices, cards=cbc.concepts,
@@ -306,32 +299,29 @@ abline(h=0)
 
 ![plot of chunk unnamed-chunk-12](conjoint-slides-figure/unnamed-chunk-12-1.png)
 
+</small>
 
 
 Hierarchical Bayes Estimation
 ========================================================
 
-Hierachical Bayes (HB) estimation is typically used for choice models to estimate
-a mixed effects model. The *upper level* has fixed effects estimates
-for the sample, while the *lower level* gives estimates for each
-individual respondent within the distribution.
+<small>
+Hierachical Bayes (HB) estimation is used to estimate
+a mixed effects model. The *upper level* has fixed effects, while
+the *lower level* estimates random effects for each respondent.
 
-To estimate the hierarchical Bayes model, use the function
-`estimateMNLfromDesignHB()`. This function is a wrapper that
-simplifies the data setup and calls `ChoiceModelR::choicemodelr()`
-(Sermas, 2012). It uses the *tab* format for the design matrix.
+To estimate HB, use `estimateMNLfromDesignHB()`. It is a wrapper that
+calls `ChoiceModelR::choicemodelr()`
+(Sermas, 2012). HB uses MCMC iteration; for demonstration,
+we specify a chain with length 2000. In practice, this would typically be 10000s.
 
-HB uses iterative MCMC estimation. For speed here,
-we specify 2000 total MCMC draws (burn-in and posterior); in practice,
-this would typically be 10000s, as MCMC needs a long
-burn-in period for such data.
-
-`estimateMNLfromDesignHB()` includes several common HB arguments:
-- the proportion of the MCMC chain that is regarded as posterior
+`estimateMNLfromDesignHB()` includes common HB options:
+- proportion of the MCMC chain that is regarded as posterior
 draws  (`pitersUsed`)
-- whether to save the MCMC chain ("draws") for each respondent (`drawKeep`)
-- the frequency of posterior draws to retain (every K'th draw in the
-chain to avoid autocorrelation; `drawKeepK`)
+- whether to save MCMC chain ("draws") for each respondent (`drawKeep`)
+- frequency of posterior draws to retain (every K'th draw, to avoid
+autocorrelation; `drawKeepK`)
+</small>
 
 
 HB Estimation
@@ -511,13 +501,6 @@ the **`marketSim()`** function. Compare:
 - Flat 8GB Blue drive at \$9 from Alpha **vs.**
 - Odd 64GB Red drive at \$24 from Bravo
 
-We specify the sets of attributes for each product and compare
-them. In this case, we will use first choice preference, where
-each individual is regarded as "purchasing" the item with highest preference;
-other options in **`marketSim()`** include share of preference at the individual
-level, and first choice with randomization:
-
-
 
 ```r
 prod1 <- c(6, 16, 14,  9, 1)  # attribute cols: Flat 8GB Blue $9 Alpha
@@ -541,60 +524,76 @@ Classroom Usage
 =========================================
 To use this package in a classroom setting:
 
-- Cover the concepts of choice-based conjoint analysis
-- Show product attributes and tasks are randomly created
-- Write out a CSV file
-- Share the CSV and have each student complete a block in the shared document
-- Download the spreadsheet CSV, read the answers, and estimate the results
-- Share the results and discuss them
+1. Cover the concepts of choice-based conjoint analysis
+2. Show product attributes and tasks are randomly created
+3. Write out a CSV file
+4. Share the CSV and have each student complete a block in the shared document
+5. Download the spreadsheet CSV, read the answers, and estimate the results
+6. Share the results and discuss them
 
-In classroom settings, the individual level plots often lead
-to interesting discussion and demonstration that the method "works".
+In class, individual level plots lead
+to interesting discussion. They demonstrate that the method may "work" with
+surprisingly small samples.
 
 
 Features Beyond CBC
 =========================================
 
-The **`choicetools`** package includes support for many other features of CBC
-models and related marketing analyses that are beyond the scope of this
-vignette. Those include:
+**`choicetools`** includes support for other features of CBC
+models and related marketing analyses beyond this vignette:
 
-- MaxDiff / Best-Worst Scaling, with support to import models from Sawtooth
-Software and Qualtrics. Unlike the largely didactic support for CBC models,
-the MaxDiff features are intended to be production quality. Cf. Bahna & Chapman (2018).
+- MaxDiff / Best-Worst Scaling, with support for Sawtooth
+Software and Qualtrics data. Unlike the largely didactic support for CBC models,
+MaxDiff features are intended for production quality. Cf. Bahna & Chapman (2018).
 - Composite Perceptual Maps for brand positioning.
-- Experimental CBC models to assess attribute importance. With inspiration
-from random forest variable importance methods, this method omits an attribute
-and examines the change in predictive validity under oblation to determine the
-importance of that attribute.
+- Experimental CBC method to assess attribute importance. With inspiration
+from random forest variable importance, this method omits an attribute
+and examines the change in predictive validity to determine the attribute importance.
 
 
+Intended Usage of Key Features
 =========================================
 
-# Thank you! + Q&A + References
+<small>
 
-**Package in development**: https://github.com/cnchapman/choicetools
+| Method | Intended Usage | Notes |
+|-------|------|--------|
+| CBC: Experimental Design  |  Didactic | Sawtooth Software recommended |
+| CBC: Aggregate Logit  |  Didactic | Simple gradient method implemented |
+| CBC: Hierarchical Bayes  | Production | Uses ChoiceModelR (Sermas, 2012) |
+| CBC: Attribute importance | Experimental | |
+| CBC: Preference Share | Production | MNL share, randomized first choice, etc. |
+| MaxDiff: Import Qualtrics/Sawtooth | Production | Import Data and Design Matrices* |
+| MaxDiff: Aggregate Logit | Production | Uses mlogit (Croissant, 2019)|
+| MaxDiff: Hierarchical Bayes | Production | Uses ChoiceModelR for estimation |
+| MaxDiff: Data Augmentation | Production |  cf. Bahna & Chapman (2018) |
+| CPM: Composite Perceptual Map | Production | Useful, if unrelated to choice models |
 
-Bahna, E., and Chapman, CN (2018). Constructed, Augmented MaxDiff. In
-B. Orme, ed., *Proc 2018 Sawtooth Software Conference*.
+\* Import from Qualtrics requires careful survey creation and
+data export. Contact authors for details (to be added to package documentation).
 
-Chapman, CN, and Feit, EMF (2019). *R for Marketing Research and Analytics*,
-2nd ed. Chapter 13: Choice Modeling. New York: Springer.
+</small>
 
-Eddelbuettel, D; with A Lucas, J Tuszynski,
-H Bengtsson, S Urbanek, M Frasca, B Lewis, M Stokely,
-H Muehleisen, D Murdoch, J Hester, W Wu, Q Kou,
-T Onkelinx, Ml Lang, V Simko, K Hornik and R Neal.
-(2018). **digest**: Create Compact Hash Digests of R Objects. R package
-version 0.6.18. https://CRAN.R-project.org/package=digest
+=========================================
+Thank you! + References 1
 
-Rossi, PE, Allenby, GM, and McCulloch, RE (2005).
-*Bayesian Statistics and Marketing*. New York: Wiley.
+<small>
+- Bahna, E., and Chapman, CN (2018). Constructed, Augmented MaxDiff. In B. Orme, ed., *Proc 2018 Sawtooth Software Conference*.
+- Chapman, CN, and Feit, EMF (2019). *R for Marketing Research and Analytics*, 2nd ed. Chapter 13: Choice Modeling. New York: Springer.
+- Yves Croissant (2019). **mlogit**: Multinomial Logit Models. R package v 0.4-1. https://CRAN.R-project.org/package=mlogit
+- Eddelbuettel, D; with A Lucas, J Tuszynski, H Bengtsson, S Urbanek, M Frasca, B Lewis, M Stokely, H Muehleisen, D Murdoch, J Hester, W Wu, Q Kou, T Onkelinx, Ml Lang, V Simko, K Hornik and R Neal. (2018). **digest**. R package v 0.6.18. https://CRAN.R-project.org/package=digest
+- Rossi, PE, Allenby, GM, and McCulloch, RE (2005). *Bayesian Statistics and Marketing*. New York: Wiley.
+</small>
 
-Sermas, Ryan (2012). **ChoiceModelR**: Choice Modeling in R. R package version 1.2.
-https://CRAN.R-project.org/package=ChoiceModelR
+=========================================
+Thank you! + References 2
 
-Wickham, H. (2016). *ggplot2: Elegant Graphics for Data Analysis*. New York: Springer.
+<small>
+- Sermas, Ryan (2012). **ChoiceModelR**: Choice Modeling in R. R package v 1.2. https://CRAN.R-project.org/package=ChoiceModelR
+- Wickham, H. (2016). *ggplot2: Elegant Graphics for Data Analysis*. New York: Springer.
+- Wilke, CO. (2018). **ggridges**: Ridgeline Plots in 'ggplot2'. R package v 0.5.1. https://CRAN.R-project.org/package=ggridges
+</small>
 
-Wilke, CO. (2018). **ggridges**: Ridgeline Plots in 'ggplot2'. R package version 0.5.1.
-https://CRAN.R-project.org/package=ggridges
+Package: https://github.com/cnchapman/choicetools
+
+Contact: camd@google.com
