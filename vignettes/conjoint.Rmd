@@ -22,7 +22,7 @@ library(choicetools)
 # Introduction to Choice-Based Conjoint Analysis
 
 In this vignette, we demonstrate a simple choice-based conjoint (CBC) 
-analysis project, end to end. 
+analysis project, end to end, using the `choicetools` package. 
 
 Choice-based conjoint is a variety of conjoint analysis in which
 respondents choose among several (typically 2-4) products that differ in 
@@ -71,8 +71,8 @@ We set up the study by defining those parameters:
 set.seed(98103)
 
 cbc.tasks     <- 12   # trials per respondent
-cbc.concepts  <- 3     # cards per trial
-N             <- 400       # N of respondents
+cbc.concepts  <- 3    # cards per trial
+N             <- 400  # N of respondents
 
 cbc.attrs     <- c(Brand=4, Style=4, Price=5, Color=2, Size=4)
 ```
@@ -125,7 +125,7 @@ We can also convert the "tab style" layout to a fully-extended, dummy coded
 matrix of 0 and 1 entries:
 
 ```{r, echo=FALSE, results='asis'}
-cbc.des <- convertSSItoDesign(cbc.tab)              # dummy coded matrix
+cbc.des <- convertSSItoDesign(cbc.tab)     # dummy coded matrix
 knitr::kable(head(cbc.des, 9))
 ```
 
@@ -138,7 +138,7 @@ appear (with minimal instruction). `writeCBCdesignCSV()` will produce a
 minimal "survey" in CSV format:
 
 ```{r}
-writeCBCdesignCSV(head(cbc.tab, 6), cards = 3, trials = 2, 
+writeCBCdesignCSV(head(cbc.tab, 6), cards=3, trials=2, 
                   attr.list=cbc.attrs, lab.attrs=names(cbc.attrs),
                   lab.levels = cbc.levels)
 ```
@@ -165,7 +165,7 @@ To see how this works, we use `generateRNDpws()` to make up some zero-sum part w
 and then `pickMNLwinningCards()` to find the preferred concept based on those
 part worths for each choice set:
 ```{r}
-cbc.pws <- generateRNDpws(cbc.attrs)                # make up some zero-sum part worths
+cbc.pws <- generateRNDpws(cbc.attrs)    # make up some zero-sum part worths
 
 cbc.win <- pickMNLwinningCards(cbc.des, cbc.pws)          
 knitr::kable(head(cbind(cbc.win, cbc.des), 9))
@@ -278,7 +278,7 @@ to avoid autocorrelation; `drawKeepK`).
 ```{r}
 # replace 30% of the perfect "winning" vector with random draws
 cbc.win2    <- cbc.win
-cbc.replace <- sample(length(cbc.win2), length(cbc.win2)*0.3)  # replace these
+cbc.replace <- sample(length(cbc.win2), length(cbc.win2)*0.3)  # to replace
 cbc.win2[cbc.replace] <- sample(3, length(cbc.replace), replace=TRUE)
 
 # estimate using the design and winning cards
@@ -312,9 +312,9 @@ ggplot(data=cbc.m, aes(x=value, y=variable, group=variable)) +
                           position="points_sina",
                           point_color = "blue", point_alpha=1/sqrt(N),
                           point_size=2.5) +
-        ylab("Item") + xlab("Relative preference (blue circles=individuals)") +
+        ylab("Item") + 
+        xlab("Relative preference (blue circles=individuals)") +
         ggtitle("Preference estimates: Distribution of individuals")
-
 ```
 
 The `ggridges` plot is very useful to demonstrate the distribution of individuals
@@ -336,7 +336,6 @@ level, and first choice with randomization:
 #                    "$9",  "$14",  "$19",  "$24",  "$29",    # Price 9-13
 #                    "Blue",  "Red",                          # Color 14-15
 #                    "8GB", "16GB", "32GB", "64GB")           # Size 16-19
-
 prod1 <- c(6, 16, 14,  9, 1)     # Flat 8GB Blue $9 Alpha
 prod2 <- c(8, 19, 15, 12, 2)     # Odd 64GB Red $24 Bravo
 usb.pref  <- marketSim(
@@ -355,29 +354,60 @@ the $9 flat 8GB drive from Alpha.
 
 # Classroom Usage
 
+To use this package in a classroom setting, I suggest the following:
+
+- Cover the basic concepts of choice-based conjoint analysis
+- Show product attributes and how they are randomly selected for concept trials
+- Write out a CSV file, and assign respondent numbers to students
+- Share the CSV and have students complete their blocks in the shared document
+- Download the spreadsheet CSV, read the answers, and estimate the results
+- Share the results and discuss them
+
+In classroom settings, I usually find that the individual level plots lead
+to interesting discussion. Disagreement, such as one respondent feeling that
+that her answers are not reflected in the distribution, is rare. Such 
+discussion is often helpful to answer questions about the efficacy of choice
+modeling methods.
 
 # Features Beyond CBC
 
+The `choicetools` package includes support for many other features of CBC 
+models and related marketing analyses that are beyond the scope of this 
+vignette. Those include:
+
+- MaxDiff / Best-Worst Scaling, with support to import models from Sawtooth 
+Software and Qualtrics. Unlike the largely didactic support for CBC models,
+the MaxDiff features are intended to be production quality. Cf. Bahna & Chapman (2018).
+- Composite Perceptual Maps for brand positioning.
+- Experimental CBC models to assess attribute importance. With inspiration
+from random forest variable importance methods, this method omits an attribute
+and examines the change in predictive validity under oblation to determine the
+importance of that attribute.
+
 
 # References
 
+Bahna, E., and Chapman, CN (2018). Constructed, Augmented MaxDiff. In 
+B. Orme, ed., *Proceedings of the 2018 Sawtooth Software Conference*, 
+Orlando, FL.
 
-# References
+Chapman, CN, and Feit, EMF (2019). *R for Marketing Research and Analytics*, 
+2nd ed. Chapter 13: Choice Modeling. New York: Springer.
 
-Chapman, CN, and Feit, EMF (2019). *R for Marketing Research and Analytics, 2nd edition*. 
-Chapter 13: Choice Modeling. New York: Springer.
-
-Eddelbuettel, Dirk, with contributions by Antoine Lucas, Jarek Tuszynski, Henrik Bengtsson, Simon Urbanek,
-  Mario Frasca, Bryan Lewis, Murray Stokely, Hannes Muehleisen, Duncan Murdoch, Jim Hester, Wush Wu, Qiang
-  Kou, Thierry Onkelinx, Michel Lang, Viliam Simko, Kurt Hornik and Radford Neal. (2018). digest: Create
-  Compact Hash Digests of R Objects. R package version 0.6.18. https://CRAN.R-project.org/package=digest
+Eddelbuettel, Dirk, with contributions by Antoine Lucas, Jarek Tuszynski, 
+Henrik Bengtsson, Simon Urbanek, Mario Frasca, Bryan Lewis, Murray Stokely, 
+Hannes Muehleisen, Duncan Murdoch, Jim Hester, Wush Wu, Qiang Kou, 
+Thierry Onkelinx, Michel Lang, Viliam Simko, Kurt Hornik and Radford Neal. 
+(2018). digest: Create Compact Hash Digests of R Objects. R package 
+version 0.6.18. https://CRAN.R-project.org/package=digest
   
-Rossi, PE, Allenby, GM, and McCulloch, RE (2005). *Bayesian Statistics and Marketing*. New York: Wiley.
+Rossi, PE, Allenby, GM, and McCulloch, RE (2005). 
+*Bayesian Statistics and Marketing*. New York: Wiley.
 
-Sermas, Ryan (2012). ChoiceModelR: Choice Modeling in R. R package version 1.2.
-  https://CRAN.R-project.org/package=ChoiceModelR
+Sermas, Ryan (2012). ChoiceModelR: Choice Modeling in R. R package version 1.2. 
+https://CRAN.R-project.org/package=ChoiceModelR
   
-Wickham, H. (2016). ggplot2: Elegant Graphics for Data Analysis. New York: Springer-Verlag.
+Wickham, H. (2016). *ggplot2: Elegant Graphics for Data Analysis*. New York: Springer-Verlag.
 
-Wilke, CO. (2018). ggridges: Ridgeline Plots in 'ggplot2'. R package version 0.5.1.
-  https://CRAN.R-project.org/package=ggridges
+Wilke, CO. (2018). ggridges: Ridgeline Plots in 'ggplot2'. R package version 0.5.1. 
+https://CRAN.R-project.org/package=ggridges
