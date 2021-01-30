@@ -221,18 +221,39 @@ md.quicklogit <- function(md.define, preadapt.only=TRUE) {
                             md.define$md.nrow.preadapt),
                      nrow(md.block))
 
-  mlogit.ready <- mlogit.data(md.block[1:nrow.use, ],
-                              shape = "long",
-                              choice = "choice.coded",
-                              chid.var="chid",
-                              alt.levels=seq(1, md.define$md.item.pertask, 1),
-                              id.var="resp.id")   # choice is the response, chid is the task id, alt.levels shows the options per task
+  # shape data depending on which version of mlogit is installed
+  if (packageVersion("mlogit") < "1.1") {
+    mlogit.ready <- mlogit.data(md.block[1:nrow.use, ],
+                                shape = "long",
+                                choice = "choice.coded",
+                                chid.var="chid",
+                                alt.levels=seq(1, md.define$md.item.pertask, 1),
+                                id.var="resp.id")   # choice is the response, chid is the task id, alt.levels shows the options per task
+  } else {
+    library(dfidx)
+    # add chid for unique block indexing per mlogit 1.1+
+    md.block$chid <- ((md.block$resp.id-1)*md.define$md.item.pertask + md.block$Block)*2 + ifelse(md.block$Set=="Worst", 0, -1)
+    # and add the alternative counter for each
+    # note that this assumes perfect rectangularity for now -- TO DO relax that
+    md.block$alt  <- rep(1:md.define$md.item.pertask, nrow(md.define$md.block)/md.define$md.item.pertask)
+    md.block$choice.coded <- ifelse(md.block$choice.coded=="yes", TRUE, FALSE)
+
+    mlogit.ready <- dfidx(md.block[1:nrow.use, ],
+                          choice = "choice.coded",
+                          idx="chid")
+  }
 
   mlogit.f.raw <- paste("choice.coded ~ 0 + ",
                         paste(names(md.block[3:(md.define$md.item.k+1)]), collapse=" + "))
-  mlogit.f     <- mFormula(as.formula(mlogit.f.raw))
-  cat("Estimating mlogit formula:\n", as.character(mlogit.f),"\n\n")
 
+  # mlogit 1.1 also changed its formula interface
+  if (packageVersion("mlogit") < "1.1") {
+    mlogit.f     <- mFormula(as.formula(mlogit.f.raw))
+  } else {
+    mlogit.f     <- formula(as.formula(mlogit.f.raw))
+  }
+
+  cat("Estimating mlogit formula:\n", as.character(mlogit.f),"\n\n")
 
   # estimation!
   mlogit.model <- (mlogit(mlogit.f, data = mlogit.ready, probit = FALSE))

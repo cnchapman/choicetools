@@ -654,12 +654,19 @@ read.md.cho <- function(md.define,
       md.names    <- as.character(md.name.raw[seq(from=1, to=nrow(md.name.raw), by=2), 1])
       # note that the VAL file does not provide the label for the final MD item
       # so if you're relying on the VAL file labels, you may want to define this one yourself
+      # you can add it directly to the VAL file in last position ...
       # ... but really it's better to define all the friendly names in setup (md.define$md.item.names) !
-      md.names    <- c(md.names, opt.last.item.label)
+      #
+      # pad md.names IF the VAL file is missing 1 line
+      # which is the default by Sawtooth
+      #
+      if (length(md.names) == md.define$md.item.k-1) {
+        md.names    <- c(md.names, opt.last.item.label)
+      }
 
       # NO, that file doesn't exist, so set placeholder names instead
     } else {                                  # if not defined and no VAL, just assign numbers to the names
-      warning("Could not find VAL file: ", paste0(md.define$file.wd, val.filename))
+      warning("Could not find VAL file: ", paste0(md.define$file.wd, val.filename), " so will use item names i1, i2, etc.")
       md.names <- paste0("i", 1:md.define$md.item.k)
     }
   }
@@ -672,8 +679,12 @@ read.md.cho <- function(md.define,
     md.names <- md.names[1:md.define$md.item.k]
   }
 
-  md.names    <- gsub("<b>", "", md.names)
+  md.names    <- gsub("<b>", "", md.names)       # remove bold, italic, underline HTML tags
   md.names    <- gsub("</b>", "99", md.names)
+  md.names    <- gsub("<i>", "", md.names)
+  md.names    <- gsub("</i>", "99", md.names)
+  md.names    <- gsub("<u>", "", md.names)
+  md.names    <- gsub("</u>", "99", md.names)
   md.names    <- gsub("[[:punct:]]+", " ", md.names)
   md.names    <- gsub("[[:cntrl:]]+", " ", md.names)
   md.names    <- gsub("[[:space:]]+", ".", md.names)

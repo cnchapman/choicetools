@@ -1,16 +1,9 @@
-# tests for choicetools
+# tests and examples for choicetools package
+# work in progress
 
 library(choicetools)
 
 ##### IN PROGRESS TESTS
-
-
-
-
-
-
-
-
 
 ################### CBC TESTS
 
