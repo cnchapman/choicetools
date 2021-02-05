@@ -4,11 +4,131 @@
 # MaxDiff data parsing and input
 
 # FUNCTIONS
-#   parse.md.qualtrics()    : attempts to set up an "md.define" object automatically (alternative is to hand code one)
+#   preprocess.md.qualtrics : reformats data from various Qualtrics CSV formats to standard ("legacy") format
+#   parse.md.qualtrics      : attempts to set up an "md.define" object automatically (alternative is to hand code one)
 #                             based on reading and inferring structure from a Qualtrics CSV export
-#   parse.md.cho()          : attempts to set up "md.define" based on Sawtooth Software "CHO file" export
-#   read.md.cho()           : given an md.define object for Sawtooth Software, read its linked data and format appropriately for estimation
-#   read.md.qualtrics()     : given an md.define object for Qualtrics data, read its linked data and format appropriately for estimation
+#   parse.md.cho            : attempts to set up "md.define" based on Sawtooth Software "CHO file" export
+#   read.md.cho             : given an md.define object for Sawtooth Software, read its linked data and format appropriately for estimation
+#   read.md.qualtrics       : given an md.define object for Qualtrics data, read its linked data and format appropriately for estimation
+
+
+#############################################################
+#
+#   preprocess.md.qualtrics(dat)
+#
+#   checks for the qualtrics data format of "dat"
+#   and returns a version that is formatted according to a standard format
+#   specifically, what Qualtrics used to call "legacy, randomization" view
+#
+#   also to serve as a single placeholder for future updates & processing
+#   to do: handle loop & merge data
+#
+# PARAMETERS
+#   dat : data frame with raw CSV read from the parse.md.qualtrics() function
+#
+# RETURN
+#   a data frame where column names & positions are reorgazized to
+#   the standard format for parse.md.qualtrics()
+#
+# DETAILS
+#   for "legacy + randomized" data:
+#       1. no change, return as is
+#   for the "modern + randomized" data
+#       1. for all question text (row 2) with "* - Display Order", replace with "Display Order: *"
+#       2. for all IDs (row 3) with "QID##_DO", replace with "DO-Q-Q##"
+#       3. in all question text (row 2) replace " - " with "-"
+#       4. in all item IDs (row 3) replace "_" with "-"
+#       5. find all columns with ID "DO-Q-Q*" and move to the right hand side of data frame
+#   for files with loop and merge data:
+#       to do, not supported currently
+#############################################################
+
+preprocess.md.qualtrics <- function(dat) {
+
+  # constants used by Qualtrics that should be stable and not require change
+  rowNames    <- 1         # line in the CSV with Qualtrics's names
+  rowItems    <- 2         # line in the CSV with actual MaxDiff item text
+  rowIntern   <- 3         # line in the CSV with Qualtrics's internal reference names
+
+  # start by assuming it is unknown
+  qt.version <- "unknown"
+
+  # identify the Qualtrics data version
+  # legacy == "{'ImportId': 'QID" is present in rowIntern, AND
+  #           "{'ImportId': 'responseId'}" is present in rowIntern
+  # modern == "{"ImportId":"_recordId"}" is present in rowIntern AND
+  #           "{"ImportId":"QID" is present in rowIntern
+
+  # legacy
+  if (any(grepl("{'ImportId': 'QID", dat[rowIntern, ], fixed = TRUE)) &
+      any(grepl("{'ImportId': 'responseId'}", dat[rowIntern, ], fixed = TRUE))) {
+    qt.version <- "legacy"
+  }
+  if (any(grepl('{"ImportId":"_recordId"}', dat[rowIntern, ], fixed = TRUE)) &
+      any(grepl('{"ImportId":"QID', dat[rowIntern, ], fixed = TRUE))) {
+    qt.version <- "modern"
+  }
+
+  # for unknown format
+  if (qt.version == "unknown") {
+    # placeholder, nothing to do for now
+    cat("Unclear file format detected. Attempting to parse.\n")
+  }
+
+  # legacy format
+  if (qt.version == "legacy") {
+    # placeholder, nothing to do for now
+    cat("Qualtrics 'legacy' file format detected. Parsing.\n")
+  }
+
+  # modern format
+  if (qt.version == "modern") {
+    cat("Qualtrics 'modern' file format detected. Parsing.\n")
+
+    # 1. for all question text (row 2) with "* - Display Order", replace with "Display Order: *"
+    # first identify
+    # first split to get the question text
+    newtext <- dat[rowItems, ]
+    newtext <- sub("(.+) - Display Order", "Display Order: \\1", newtext)
+    dat[rowItems, ] <- newtext
+
+    # 2. for all IDs (row 3) matching "QID##_DO", replace with "DO-Q-Q##"
+    newtext <- dat[rowIntern, ]
+    newtext <- sub("QID([0-9]+)_DO", "DO-Q-Q\\1", newtext)
+    dat[rowIntern, ] <- newtext
+
+    # 3. do the same in column names (row 1), replacing "Q##*" with "DO-Q-Q##"
+    newtext <- dat[rowNames, ]
+    newtext <- sub("Q([0-9]+)_DO", "DO-Q-Q\\1", newtext)
+    dat[rowNames, ] <- newtext
+
+    # 4. in all question text (row 2) replace " - " with "-"
+    newtext <- dat[rowItems, ]
+    newtext <- sub(" - ", "-", newtext)
+    dat[rowItems, ] <- newtext
+
+    # 5. in all item IDs (row 3) replace "_" with "-"
+    newtext <- dat[rowIntern, ]
+    newtext <- sub("_", "-", newtext)
+    dat[rowIntern, ] <- newtext
+
+    # 6. replace all " with ' in rowIntern
+    newtext <- dat[rowIntern, ]
+    newtext <- gsub('"', "'", newtext, fixed=TRUE)
+    dat[rowIntern, ] <- newtext
+
+    # 7. replace "'ImportId':" with "'ImportId': " in rowIntern
+    newtext <- dat[rowIntern, ]
+    newtext <- sub("'ImportId':", "'ImportId': ", newtext)
+    dat[rowIntern, ] <- newtext
+
+    # 8. find all columns with ID "DO-Q-Q*" and move to the right hand side of data frame
+    DOcols <- which(grepl("DO-Q-Q*", dat[rowIntern, ]))
+    dat    <- cbind(dat[ , -DOcols], dat[ , DOcols])
+
+  }
+  return(dat)
+}
 
 
 #############################################################
@@ -65,6 +185,9 @@ parse.md.qualtrics <- function(file.qsv=NULL,
   # first read the data itself
   cat("Reading file:", file.name, "\n")
   md.all.raw <- read.csv(file.name, header=FALSE, stringsAsFactors=FALSE)
+
+  # pre-process, to map Qualtrics updates to a single canonical format
+  md.all.raw <- preprocess.md.qualtrics(md.all.raw)
 
   # which row has item labels?
   rowItems.found <- which(apply(md.all.raw, 1, function(x) { any(grepl(designHead, x, fixed=TRUE)) } ))[1]
@@ -920,7 +1043,15 @@ read.md.qualtrics <- function(md.define, use.wd=FALSE) {
   n.resp      <- NULL      # number of respondents; leave NULL to set this automatically (or set lower if desired)
 
   # first read the data itself
-  md.all.raw <- read.csv(file.name, skip=max(rowItems, rowIntern), header=FALSE, stringsAsFactors=FALSE)
+  # md.all.raw <- read.csv(file.name, skip=max(rowItems, rowIntern), header=FALSE, stringsAsFactors=FALSE)
+  md.all.raw <- read.csv(file.name, header=FALSE, stringsAsFactors=FALSE)
+
+  # pre-process, to map Qualtrics updates to a single canonical format
+  md.all.raw <- preprocess.md.qualtrics(md.all.raw)
+  # now drop the header rows, don't need them after pre-process, because
+  # they are in md.define
+  md.all.raw <- md.all.raw[-(1:max(rowItems, rowIntern)), ]
+
   # keep only the headers plus designated respondent rows
   if (!is.null(md.define$resp.rows)) {
     md.all.raw <- md.all.raw[md.define$resp.rows-max(rowItems, rowIntern), ]
