@@ -31,12 +31,15 @@
 #   the standard format for parse.md.qualtrics()
 #
 # DETAILS
+#   for all formats
+#       1. replace item delimiter "-" or " - " with standardized "%-%"
+#          which will avoid incorrectly parsing item text that includes hyphens
 #   for "legacy + randomized" data:
-#       1. no change, return as is
+#       1. no change, return as is after above
 #   for the "modern + randomized" data
 #       1. for all question text (row 2) with "* - Display Order", replace with "Display Order: *"
 #       2. for all IDs (row 3) with "QID##_DO", replace with "DO-Q-Q##"
-#       3. in all question text (row 2) replace " - " with "-"
+#       3. in all question text (row 2) replace " - " with "-" [should not be needed due to standard delimiter]
 #       4. in all item IDs (row 3) replace "_" with "-"
 #       5. find all columns with ID "DO-Q-Q*" and move to the right hand side of data frame
 #   for files with loop and merge data:
@@ -50,7 +53,79 @@ preprocess.md.qualtrics <- function(dat) {
   rowItems    <- 2         # line in the CSV with actual MaxDiff item text
   rowIntern   <- 3         # line in the CSV with Qualtrics's internal reference names
 
-  # start by assuming it is unknown
+  #### updates that might apply to any format version
+  #
+  # 1. Delimiter
+  #
+  # Find item delimiter and replace it with a standard (and unlikely-to-be-used) delimiter, "%-%"
+  # first, get a table of all the columns that have "Display Order" in them
+  # so we can identify the most likely MaxDiff item wording (which should be repeated in multiple design order columns)
+  do.tab <- table(as.character(sapply(dat[rowItems, grepl("Display Order", dat[rowItems, ], fixed=TRUE)], function(x) strsplit(x, "Display Order"))))
+
+  # did we find anything?
+  if (length(do.tab) < 1) {
+    # we did not find any "Display Order" at all
+    cat("Could not detect MaxDiff Display Order columns. Data may be missing the design matrices.\n")
+  } else {
+    # we did find at least one, so let's process the items
+    # we will find the item names for the MaxDiff items and update those columns
+    if (max(do.tab) < 2) {
+      # we did not find any *repeated* items so give a warning. MaxDiff usually has multiple screens.
+      cat("Maximum times any item was randomized was 1 time. This is not usually consistent with MaxDiff multiple tasks.\n")
+    }
+    # following is the item most likely to be MaxDiff, because its prefix occurs the most times
+    #   (or is the first item among any that are tied for "most")
+    # get its item prefix (everything before the "Display Order" part)
+    max.item <- names(do.tab)[which(do.tab==max(do.tab))[1]]
+    # now, which other columns have that item prefix in them?
+    # those are presumably the MaxDiff item columns
+    which.items <- grepl(max.item, dat[rowItems, ], fixed=TRUE)
+    item.tails  <- gsub(max.item, "", dat[rowItems, which.items], fixed=TRUE)
+    # from the item header, trim trailing spaces and '-' so we can replace
+    # the separator between heading text and specific items using a standard delimiter
+    max.item <- trimws(max.item, whitespace = "[ \t\r\n-]")
+    # format the new item wording as the leading question, then delimiter, then the variable trailing items (MaxDiff list items)
+    new.items   <- paste0(max.item, "%-%", item.tails)
+    # and finally update our item text
+    dat[rowItems, which.items] <- new.items
+  }
+
+
+  #
+  # 2. Question numbering
+  #
+  # Use the question numbering as output by Qualtrics (ignore user question names for maxdiff items)
+  # Replace labels in rowNames with those from rowIntern, for the MaxDiff items detected above.
+  #
+  # We do this because users may have chosen their own names for the MaxDiff items,
+  # and that could confuse the parser. Safer to use the internal Qualtrics numbering.
+  #
+  # The code varies for "modern" and "legacy" formats.
+  # We could do this below after detecting the format modern & legacy portions, but it is safe
+  # to do it here, and isolates the code a bit more.
+
+  # get the internal strings
+  q.labels <- dat[rowIntern, which.items]
+
+  # now remove the parts we don't need to get just the item names
+  #
+  # following will apply to "modern" format (and no effect otherwise)
+  q.labels <- gsub('{"ImportId":"', "", q.labels, fixed=TRUE)
+  q.labels <- gsub('"}', "", q.labels, fixed=TRUE)
+
+  # following will apply to "legacy" format (and no effect otherwise)
+  q.labels <- gsub("{'ImportId': '", "", q.labels, fixed=TRUE)
+  q.labels <- gsub("}'", "", q.labels, fixed=TRUE)
+
+  # applies to both formats
+  q.labels <- gsub("QID", "Q", q.labels, fixed=TRUE)
+
+  # replace the nominal item headers with the Qualtrics internal ones
+  dat[rowNames, which.items] <- q.labels
+
+
+  #### updates that vary according to the format
+  # start by assuming that the format is unknown
   qt.version <- "unknown"
 
   # identify the Qualtrics data version
@@ -58,32 +133,47 @@ preprocess.md.qualtrics <- function(dat) {
   #           "{'ImportId': 'responseId'}" is present in rowIntern
   # modern == "{"ImportId":"_recordId"}" is present in rowIntern AND
   #           "{"ImportId":"QID" is present in rowIntern
+  # backup if none of the above: assume based on 'QID vs "QID
 
   # legacy
   if (any(grepl("{'ImportId': 'QID", dat[rowIntern, ], fixed = TRUE)) &
       any(grepl("{'ImportId': 'responseId'}", dat[rowIntern, ], fixed = TRUE))) {
     qt.version <- "legacy"
+    cat("Qualtrics 'legacy' file format detected. Parsing.\n")
   }
+  # modern
   if (any(grepl('{"ImportId":"_recordId"}', dat[rowIntern, ], fixed = TRUE)) &
       any(grepl('{"ImportId":"QID', dat[rowIntern, ], fixed = TRUE))) {
     qt.version <- "modern"
+    cat("Qualtrics 'modern' file format detected. Parsing.\n")
   }
 
   # for unknown format
   if (qt.version == "unknown") {
-    # placeholder, nothing to do for now
-    cat("Unclear file format detected. Attempting to parse.\n")
+    # legacy
+    if (any(grepl("{'ImportId': 'QID", dat[rowIntern, ], fixed = TRUE))) {
+      qt.version <- "legacy"
+      cat("Unclear format, but appears likely to be Qualtrics 'legacy' file format. Parsing.\n")
+    }
+    # modern
+    if (any(grepl('{"ImportId":"QID', dat[rowIntern, ], fixed = TRUE))) {
+      qt.version <- "modern"
+      cat("Unclear format, but appears likely to be Qualtrics 'modern' file format. Parsing.\n")
+    }
+
+    # placeholder, nothing in particular to do for now; assume it is newly downloaded
+    cat("Unclear file format. CSV may be missing too many columns or headers. Attempting to parse as modern format.\n")
+    qt.version <- "modern"
   }
 
   # legacy format
   if (qt.version == "legacy") {
     # placeholder, nothing to do for now
-    cat("Qualtrics 'legacy' file format detected. Parsing.\n")
+    # in current version, we rewrite the data to match the legacy format
   }
 
   # modern format
   if (qt.version == "modern") {
-    cat("Qualtrics 'modern' file format detected. Parsing.\n")
 
     # 1. for all question text (row 2) with "* - Display Order", replace with "Display Order: *"
     # first identify
@@ -103,6 +193,7 @@ preprocess.md.qualtrics <- function(dat) {
     dat[rowNames, ] <- newtext
 
     # 4. in all question text (row 2) replace " - " with "-"
+    # (should not be needed with the new standard delimiter, but just in case)
     newtext <- dat[rowItems, ]
     newtext <- sub(" - ", "-", newtext)
     dat[rowItems, ] <- newtext
@@ -133,7 +224,7 @@ preprocess.md.qualtrics <- function(dat) {
 
 #############################################################
 #
-# parse.md.qualtrics(file.qsv, itemSplit = "...-")
+# parse.md.qualtrics(file.qsv, itemSplit = "%-%")
 #
 # Status: incomplete, especially for handling incomplete or missing data.
 #         believed to work OK for legacy-exported complete cases.
@@ -148,8 +239,9 @@ preprocess.md.qualtrics <- function(dat) {
 #
 # PARAMETERS
 #   file.qsv      : Qualtrics export file to process. Required.
-#   itemSplit     : token used to identify MaxDiff items in Qualtrics file
-#                     required, but default "...-" should be OK
+#   itemSplit     : token used to identify MaxDiff items
+#                   as of version 0.0.0.9076, this is set in preprocess.md.qualtrics()
+#                   to a standard value of "%-%"
 #   designHead    : a token Qualtrics uses in MaxDiff design matrices (and elsewhere)
 #                     used with other indicators to infer MaxDiff columns
 #   itemConfirm   : disambiguator in case "itemSplit" & designHead don't work;
@@ -162,7 +254,7 @@ preprocess.md.qualtrics <- function(dat) {
 #                     optional, will output a code snippet you can use if preferred
 
 parse.md.qualtrics <- function(file.qsv=NULL,
-                               itemSplit = "...-",
+                               itemSplit = "%-%",
                                designHead = "Display Order",
                                itemConfirm = NULL,
                                friendly.names = NULL,
@@ -192,7 +284,7 @@ parse.md.qualtrics <- function(file.qsv=NULL,
   # which row has item labels?
   rowItems.found <- which(apply(md.all.raw, 1, function(x) { any(grepl(designHead, x, fixed=TRUE)) } ))[1]
   if (length(rowItems.found) < 1) {
-    stop("No row with items names, separated", itemSplit, "found in", file.qsv)
+    stop("No row with design matrices '", designHead, "' found in", file.qsv)
   }
   # print(head(md.all.raw))
   # print(rowItems.found)
@@ -439,6 +531,13 @@ parse.md.qualtrics <- function(file.qsv=NULL,
   }
   cat("\nOf N =", length(count.OK), "total:\n  Found N =", sum(count.OK), "complete responses, and N =", sum(!count.OK),
       "with missing observations.\n")
+
+
+  # check whether there are items without any best or worst responses (and thus
+  # a non-computable utility) and report how many, if so
+
+  # TO DO
+
 
   # final report
   cat("\n=======\nSUMMARY\nReviewed file:", file.qsv)
