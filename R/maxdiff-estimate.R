@@ -183,7 +183,7 @@ md.hb <- function(md.define,
   # TO DO:check these and warn if any problems
   #
   # colMaxs(as.matrix(cmr.beta.zc))-colMins(as.matrix(cmr.beta.zc))        # should be roughly 50-150 each
-  #mean(colMaxs(as.matrix(cmr.beta.zc))-colMins(as.matrix(cmr.beta.zc)))  # should be exactly 100
+  # mean(colMaxs(as.matrix(cmr.beta.zc))-colMins(as.matrix(cmr.beta.zc)))  # should be exactly 100
 
   # add the ID column back into it
   cmr.beta.zc$ID <- cmr.beta$ID

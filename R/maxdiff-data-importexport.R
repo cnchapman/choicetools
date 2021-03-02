@@ -24,10 +24,13 @@
 #   to do: handle loop & merge data
 #
 # PARAMETERS
-#   dat : data frame with raw CSV read from the parse.md.qualtrics() function
+#   dat         : data frame with raw CSV read from the parse.md.qualtrics() function
+#   itemConfirm : a string that should appear only in the target MaxDiff header,
+#                 to help identify it in case of disambiguation needed
+#                 ==> currently unused, placeholder for TO DO
 #
-# RETURN
-#   a data frame where column names & positions are reorgazized to
+# RETURN VALUE
+#   a data frame where column names & positions are reorganized to
 #   the standard format for parse.md.qualtrics()
 #
 # DETAILS
@@ -42,16 +45,56 @@
 #       3. in all question text (row 2) replace " - " with "-" [should not be needed due to standard delimiter]
 #       4. in all item IDs (row 3) replace "_" with "-"
 #       5. find all columns with ID "DO-Q-Q*" and move to the right hand side of data frame
+#       6. miscellaneous other substitutions
 #   for files with loop and merge data:
-#       to do, not supported currently
+#       TO DO, not supported currently
 #############################################################
 
-preprocess.md.qualtrics <- function(dat) {
+preprocess.md.qualtrics <- function(dat, itemConfirm=NULL) {
 
   # constants used by Qualtrics that should be stable and not require change
   rowNames    <- 1         # line in the CSV with Qualtrics's names
   rowItems    <- 2         # line in the CSV with actual MaxDiff item text
   rowIntern   <- 3         # line in the CSV with Qualtrics's internal reference names
+
+  qt.version <- "unknown"
+
+  #### preliminary, reformat loop & merge to align with "modern" format
+  #### then the updates below to parse "modern" format should work as is
+
+  # Is this a loop and merge file?
+  if ( (
+        any(grepl('{"ImportId":"_recordId"}', dat[rowIntern, ], fixed = TRUE)) |       # modern format OR
+        any(grepl('1_md_1',                   dat[rowNames, ],  fixed = TRUE))         # default var name for 1st maxdiff item in loop & merge
+       ) &
+       any(grepl('\\{"ImportId":"[0-9]+_QID[0-9]+_DO"\\}', dat[rowIntern, ])))         # format of loop & merge internal name for design matrix
+  {
+    qt.version <- "loopmerge"
+    cat("\nFound apparent 'loop & merge' data. Attempting conversion to 'modern' format.\n")
+    cat("\nIMPORTANT NOTE: Qualtrics loop & merge survey CSVs do NOT include the MaxDiff item labels that were shown.")
+    cat("\nPlease update labels 'field-1' etc. with desired item names, using extreme caution to ensure correct matching.\n")
+
+    # get the internal names as Qualtrics exported them
+    newtext <- dat[rowIntern, ]
+
+    # add +9000 to Qualtrics's assigned MaxDiff internal ID question numbers
+    # e.g., 1_QID9_1 ==> 9001_QID9_1  &&  1_QID9_DO ==> 9001QID9_DO
+    # this is so they will be (presumably) unique and non-conflicting with other question numbers
+    #
+    # first, prefix the question number with "900" (effectively adding 9000)
+    # do that for the items
+    newtext <- sub("([0-9]+)_QID([0-9]_[0-9]+)", "900\\1_QID\\2", newtext)
+    # and also the DO columns (separating for debuggability)
+    newtext <- sub("([0-9]+)_QID([0-9]_DO)",     "900\\1_QID\\2", newtext)
+
+    # swap that question number into the internal ID to match modern format, e.g., 9001_QID9_1 ==> QID9001_1  &&  9001QID9_DO ==> QID9001_DO
+    # if pattern == (900#+)_QID(#+)_(X+)  then replace with QID\\1_\\3
+    newtext <- sub("(900[0-9]+)_QID([0-9]+)_([0-9]+)",  "QID\\1_\\3", newtext)    # items
+    newtext <- sub("(900[0-9]+)_QID([0-9]+)_DO",        "QID\\1_DO", newtext)     # display order
+
+    # replace the internal names with updated versions
+    dat[rowIntern, ] <- newtext
+  }
 
   #### updates that might apply to any format version
   #
@@ -60,12 +103,27 @@ preprocess.md.qualtrics <- function(dat) {
   # Find item delimiter and replace it with a standard (and unlikely-to-be-used) delimiter, "%-%"
   # first, get a table of all the columns that have "Display Order" in them
   # so we can identify the most likely MaxDiff item wording (which should be repeated in multiple design order columns)
-  do.tab <- table(as.character(sapply(dat[rowItems, grepl("Display Order", dat[rowItems, ], fixed=TRUE)], function(x) strsplit(x, "Display Order"))))
+
+  # get the headers for columns with Display Order (design matrices), according to file format
+  if (any(grepl("^Display Order:", dat[rowItems, ]))) {
+    # legacy headers
+    # first get the one we will actually use in the parsing
+    do.tab <- table(as.character(sapply(dat[rowItems, grepl("Display Order", dat[rowItems, ], fixed=TRUE)],
+                                        function(x) strsplit(x, "Display Order"))))
+
+    # then get a second one that omits complexity, and will be used only to show the output header text below
+    do.tab2 <- table(as.character(sapply(dat[rowItems, grepl("Display Order: ", dat[rowItems, ], fixed=TRUE)],
+                                        function(x) strsplit(x, "Display Order: ")[[1]][2])))
+  } else {
+    # assume modern headers
+    do.tab <- table(as.character(sapply(dat[rowItems, grepl("Display Order", dat[rowItems, ], fixed=TRUE)],
+                                        function(x) strsplit(x, "Display Order"))))
+  }
 
   # did we find anything?
   if (length(do.tab) < 1) {
     # we did not find any "Display Order" at all
-    cat("Could not detect MaxDiff Display Order columns. Data may be missing the design matrices.\n")
+    cat("Could not detect MaxDiff Display Order columns. Data may be missing the randomized design matrices.\n")
   } else {
     # we did find at least one, so let's process the items
     # we will find the item names for the MaxDiff items and update those columns
@@ -73,11 +131,35 @@ preprocess.md.qualtrics <- function(dat) {
       # we did not find any *repeated* items so give a warning. MaxDiff usually has multiple screens.
       cat("Maximum times any item was randomized was 1 time. This is not usually consistent with MaxDiff multiple tasks.\n")
     }
+    # warn the user in case there are multiple repeated design matrices
+    if (sum(do.tab > 1) > 1) {
+      cat("Found multiple plausible MaxDiff items (2 or more occurrences of design matrix for each).\nThose are:\n")
+      cat(names(do.tab)[do.tab > 1], "\n")
+      #
+      # TO DO: use itemConfirm if passed in, to help disambiguate
+      #
+      cat("Will assume the most frequent occurrence is the MaxDiff block. If incorrect, you may wish to remove design matrices for other items.\n")
+    }
     # following is the item most likely to be MaxDiff, because its prefix occurs the most times
     #   (or is the first item among any that are tied for "most")
     # get its item prefix (everything before the "Display Order" part)
+    #
+    # TO DO: use itemConfirm if passed in, to help disambiguate
+    #
     max.item <- names(do.tab)[which(do.tab==max(do.tab))[1]]
-    # now, which other columns have that item prefix in them?
+    cat("\nFound MaxDiff question header:\n")
+
+    # show the header depending on the file format
+    if (any(grepl("^Display Order:", dat[rowItems, ]))) {
+      # legacy headers, so let's show the reformatted version instead
+      max.item2 <- names(do.tab2)[which(do.tab2==max(do.tab2))[1]]
+      cat(paste0('"', trimws(max.item2, whitespace = "[ \t\r\n-]"), '"\n\n'))
+    } else {
+      # modern headers, so show that
+      cat(paste0('"', trimws(max.item, whitespace = "[ \t\r\n-]"), '"\n\n'))
+    }
+
+    # now, which other columns have the question header as a prefix?
     # those are presumably the MaxDiff item columns
     which.items <- grepl(max.item, dat[rowItems, ], fixed=TRUE)
     item.tails  <- gsub(max.item, "", dat[rowItems, which.items], fixed=TRUE)
@@ -147,6 +229,14 @@ preprocess.md.qualtrics <- function(dat) {
     qt.version <- "modern"
     cat("Qualtrics 'modern' file format detected. Parsing.\n")
   }
+  # loop and merge
+  # this should NOT trigger, because we relabeled the loop & merge items above
+  # but leaving here as an error state detector
+  if (any(grepl('{"ImportId":"_recordId"}', dat[rowIntern, ], fixed = TRUE)) &
+      any(grepl('\\{"ImportId":"[0-9]+_QID[0-9]+_DO"\\}', dat[rowIntern, ]))) {
+    qt.version <- "loopmerge"
+    cat("Qualtrics file with loop & merge detected, but was NOT converted successfully.\nSomething went wrong, although it might work for you.\n")
+  }
 
   # for unknown format
   if (qt.version == "unknown") {
@@ -173,49 +263,50 @@ preprocess.md.qualtrics <- function(dat) {
   }
 
   # modern format
-  if (qt.version == "modern") {
+  if (qt.version == "modern" | qt.version == "loopmerge") {
 
     # 1. for all question text (row 2) with "* - Display Order", replace with "Display Order: *"
     # first identify
     # first split to get the question text
     newtext <- dat[rowItems, ]
-    newtext <- sub("(.+) - Display Order", "Display Order: \\1", newtext)
+    newtext <- sub("(.+) - Display Order", "Display Order: \\1", newtext)            ## loop merge == OK
     dat[rowItems, ] <- newtext
 
-    # 2. for all IDs (row 3) matching "QID##_DO", replace with "DO-Q-Q##"
+    # 2a. for all IDs (row 3) matching "QID##_DO", replace with "DO-Q-Q##"           ## modern format only; update loop & merge in 2b
+    #
     newtext <- dat[rowIntern, ]
     newtext <- sub("QID([0-9]+)_DO", "DO-Q-Q\\1", newtext)
     dat[rowIntern, ] <- newtext
 
     # 3. do the same in column names (row 1), replacing "Q##*" with "DO-Q-Q##"
     newtext <- dat[rowNames, ]
-    newtext <- sub("Q([0-9]+)_DO", "DO-Q-Q\\1", newtext)
+    newtext <- sub("Q([0-9]+)_DO", "DO-Q-Q\\1", newtext)                             ## loop merge == OK, n/a
     dat[rowNames, ] <- newtext
 
     # 4. in all question text (row 2) replace " - " with "-"
     # (should not be needed with the new standard delimiter, but just in case)
     newtext <- dat[rowItems, ]
-    newtext <- sub(" - ", "-", newtext)
+    newtext <- sub(" - ", "-", newtext)                                             ## loop merge == OK
     dat[rowItems, ] <- newtext
 
     # 5. in all item IDs (row 3) replace "_" with "-"
     newtext <- dat[rowIntern, ]
-    newtext <- sub("_", "-", newtext)
+    newtext <- sub("_", "-", newtext)                                               ## loop merge == OK
     dat[rowIntern, ] <- newtext
 
     # 6. replace all " with ' in rowIntern
     newtext <- dat[rowIntern, ]
-    newtext <- gsub('"', "'", newtext, fixed=TRUE)
+    newtext <- gsub('"', "'", newtext, fixed=TRUE)                                  ## loop merge == OK
     dat[rowIntern, ] <- newtext
 
     # 7. replace "'ImportId':" with "'ImportId': " in rowIntern
     newtext <- dat[rowIntern, ]
-    newtext <- sub("'ImportId':", "'ImportId': ", newtext)
+    newtext <- sub("'ImportId':", "'ImportId': ", newtext)                          ## loop merge == OK
     dat[rowIntern, ] <- newtext
 
     # 8. find all columns with ID "DO-Q-Q*" and move to the right hand side of data frame
     DOcols <- which(grepl("DO-Q-Q*", dat[rowIntern, ]))
-    dat    <- cbind(dat[ , -DOcols], dat[ , DOcols])
+    dat    <- cbind(dat[ , -DOcols], dat[ , DOcols])                                ## loop merge == OK
 
   }
   return(dat)
@@ -279,6 +370,7 @@ parse.md.qualtrics <- function(file.qsv=NULL,
   md.all.raw <- read.csv(file.name, header=FALSE, stringsAsFactors=FALSE)
 
   # pre-process, to map Qualtrics updates to a single canonical format
+  # TO DO -- pass in "itemConfirm" to help with disambiguation if needed
   md.all.raw <- preprocess.md.qualtrics(md.all.raw)
 
   # which row has item labels?
@@ -389,7 +481,7 @@ parse.md.qualtrics <- function(file.qsv=NULL,
   } else {
     # didn't find itemSplit everywhere, so we need to infer the splitting point
     # get first 2 adjacent item names
-    cat("Item splitting token [", itemSplit, "] not found. Inferring MaxDiff item list.\n", sep="")
+    cat("Item splitting token [", itemSplit, "] not found. This is common in legacy formatted data and usually OK.\nInferring MaxDiff item list.\n", sep="")
     cut.points <- rep(NA, length(md.labels)-1)
     for (j in 1:(length(md.labels)-1)) {
       name.1 <- md.labels[j]
@@ -417,7 +509,7 @@ parse.md.qualtrics <- function(file.qsv=NULL,
   md.labels <- trimws(md.labels)    # fix bugs in case someone edits and reverses, but leaves whitespace
   md.labels <- unique(md.labels)                       # and then update the labels
 
-  cat("Found K = ", length(md.labels), " MaxDiff items (unique column headers)\n", sep="")
+  cat("\nFound K = ", length(md.labels), " MaxDiff items (column text after the header above)\n", sep="")
   if (length(md.labels) != md.items.n.inferred) {
     cat("==>WARNING! File structure and item labels imply different item list length.\n")
     warning("File structure and item labels imply different item list length.")
