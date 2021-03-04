@@ -71,8 +71,13 @@ preprocess.md.qualtrics <- function(dat, itemConfirm=NULL) {
   {
     qt.version <- "loopmerge"
     cat("\nFound apparent 'loop & merge' data. Attempting conversion to 'modern' format.\n")
-    cat("\nIMPORTANT NOTE: Qualtrics loop & merge survey CSVs do NOT include the MaxDiff item labels that were shown.")
+    cat("\nIMPORTANT NOTE: Qualtrics loop & merge survey CSVs might NOT include the MaxDiff item labels that were shown.")
     cat("\nPlease update labels 'field-1' etc. with desired item names, using extreme caution to ensure correct matching.\n")
+
+    # if Q1, Q2 etc are present in the item labels, remove those
+    newtext <- dat[rowItems, ]
+    newtext <- sub(" - Q[0-9]+ - ", " - ", newtext)
+    dat[rowItems, ] <- newtext
 
     # get the internal names as Qualtrics exported them
     newtext <- dat[rowIntern, ]
