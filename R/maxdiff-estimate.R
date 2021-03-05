@@ -172,8 +172,8 @@ md.hb <- function(md.define,
 
   library(matrixStats)
   # total spread btw Min & Max across all attributes (step #2 from URL)
-  cmr.beta.zc.sumdiffs <- sum(colMaxs(as.matrix(cmr.beta.zc))-colMins(as.matrix(cmr.beta.zc)))
-  cmr.beta.zc.mult     <- (100*md.define$md.item.k) / cmr.beta.zc.sumdiffs   # multiplier to rescale (step #3)
+  cmr.beta.zc.sumdiffs <- max(cmr.beta.zc)-min(cmr.beta.zc)
+  cmr.beta.zc.mult     <- 100/ cmr.beta.zc.sumdiffs   # multiplier to rescale (step #3)
 
   # now recale the zero-centered utilities to that 100 pt scale
   cmr.beta.zc <- cmr.beta.zc * cmr.beta.zc.mult     # (step #4 from URL)
