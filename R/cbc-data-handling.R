@@ -146,6 +146,7 @@ generateMNLrandomTab <- function(attrLevels, cards=3, respondents=200,
 
 pickMNLwinningCards <- function(design.mat, pws=rep(0,ncol(design.mat)),
                                 cards=3, noise=FALSE, p.noise=0.3,
+                                use.MNL=TRUE,                         ## to do -- choose according to MNL roulette
                                 verbose=TRUE, vec.format="WIN")
 {
   # how many sets of comparisons are there?
@@ -167,7 +168,7 @@ pickMNLwinningCards <- function(design.mat, pws=rep(0,ncol(design.mat)),
       }
     }
     if (length(which.win) > 1) {
-      which.win <- sample(which.win,1)
+      which.win <- sample(which.win, 1)  # choose among multiple winners randomly
     }
     vec.win[i] <- which.win
     if (verbose) {

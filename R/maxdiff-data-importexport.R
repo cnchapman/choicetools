@@ -432,10 +432,15 @@ parse.md.qualtrics <- function(file.qsv=NULL,
   for (i in 1:nrow(design.df)) {
     col.regex    <- paste0("^", design.df[i, "item.names"], "_")
     col.matching <- which(grepl(col.regex, md.all.raw[rowNames, ] ))
-    # if not found, try alternative regex
+    # if not found, try alternative regex possibilities
     if (length(col.matching) == 0) {
       col.tail     <- tail(strsplit(design.df[i, "item.names"], "_")[[1]], 1)
       col.regex    <- paste0("^", col.tail, "_")
+      col.matching <- which(grepl(col.regex, md.all.raw[rowNames, ] ))
+    }
+    if (length(col.matching) == 0) {
+      col.tail     <- tail(strsplit(design.df[i, "item.names"], "_")[[1]], 1)
+      col.regex    <- paste0("^", col.tail, "-")
       col.matching <- which(grepl(col.regex, md.all.raw[rowNames, ] ))
     }
     design.df[i, "col.count"] <- length(col.matching)
@@ -450,7 +455,7 @@ parse.md.qualtrics <- function(file.qsv=NULL,
 
   # method above may fail, depending on format. If so, try different regex to match
   if (md.items.n.inferred == 0) {
-    # TO DO
+    stop("Could not find match between design columns and individual item columns. No items found.")
   }
 
   design.cols         <- design.df$design.cols[design.df$col.count==md.items.n.inferred]
@@ -460,6 +465,15 @@ parse.md.qualtrics <- function(file.qsv=NULL,
   item.names  <- design.df$item.names[design.df$col.count==md.items.n.inferred]
   item.regex <- paste0(item.names, "_", collapse="|")
   md.cols <- which(grepl(item.regex, md.all.raw[rowNames, ] ))
+
+  # what if it didn't find them? try using "-" instead of "_"
+  if (length(md.cols) == 0) {
+    item.regex <- paste0(item.names, "-", collapse="|")
+    md.cols <- which(grepl(item.regex, md.all.raw[rowNames, ] ))
+    if (length(md.cols)==0) {
+      stop("Could not find positive match of MaxDiff columns with the design matrix.")
+    }
+  }
 
   # remove any columns where item text !grep "itemConfirm"
   if (!is.null(itemConfirm)) {
