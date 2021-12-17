@@ -1336,12 +1336,15 @@ read.md.qualtrics <- function(md.define, use.wd=FALSE) {
   md.data.stack <- cbind(md.data.stack[ , 1:2], matrix(0, ncol=md.define$md.item.k, nrow=nrow(md.data.stack)), md.data.stack[ , 3:ncol(md.data.stack)])
   k.startCol    <- 3    # where the MaxDiff matrix actually starts in md.data.stack; will be OK unless you change -3 lines above
 
-  md.data.zero <- md.data                  # a copy where "nothing" is shown; starting point for actual design matrix
+  md.data.zero <- md.data                     # a copy where "nothing" is shown; starting point for actual design matrix
   md.data.zero[is.na(md.data.zero)] <- -Inf   # dummy code for missing data (need a value we can run with a comparator but QT doesn't export)
 
   ### create match for design matrix coding into actual columns within a task set
   # 1. what are the question names that appear in the file?
   md.item.qnames <- read.csv(file.name, skip=rowNames-1, nrows=1, header=FALSE, stringsAsFactors=FALSE)
+  # reorder the columns to match the pre-process data
+  md.item.qnames <- md.item.qnames[ , colnames(md.data.zero)] ## TESTING
+
   if (!is.null(md.define$q.mdcols)) {
     md.item.qnames <- md.item.qnames[, c(md.define$q.mdcols,
                                          md.define$q.startDesCol:(md.define$q.startDesCol+md.define$md.item.tasks-1))]
@@ -1353,7 +1356,8 @@ read.md.qualtrics <- function(md.define, use.wd=FALSE) {
   # print(md.item.qnames)
 
   # of those, what are the design column indicators?
-  md.item.qnames.des <- as.numeric(unlist(sapply(md.item.qnames, function(x) tail(unlist(strsplit(x, "_")), 1))))
+
+  md.item.qnames.des <- as.numeric(na.omit(as.numeric(unlist(sapply(md.item.qnames, function(x) tail(unlist(strsplit(x, "_")), 1))))))
   # print(md.item.qnames.des)
   if (anyDuplicated(md.item.qnames.des) > 0) {
     cat("Found duplicated MaxDiff item suffixes (e.g., like Q11_2 and Q11_2 again).\nData probably incorrectly read here.\n")
@@ -1365,7 +1369,6 @@ read.md.qualtrics <- function(md.define, use.wd=FALSE) {
     md.define$q.startDesCol <- length(md.define$q.mdcols) + 1
   }
 
-
   for (i in 1:nrow(md.data.zero)) {                  # iterate over respondents
     if (i %% 100 == 0) {
       # show progress
@@ -1374,6 +1377,9 @@ read.md.qualtrics <- function(md.define, use.wd=FALSE) {
     for (j in 1:md.define$md.item.tasks) {                           # iterate over the randomized design sets shown, within respondent
       desSpec   <- md.define$q.startDesCol + j - 1
       desCols   <- as.numeric(unlist(strsplit(md.data.zero[i, desSpec], "|", fixed=TRUE)))
+      if (!all(desCols %in% md.item.qnames.des)) {
+        stop("Some entries in item numbers are not found in design column numbering, ", desCols, "vs", md.item.qnames.des)
+      }
 
       offsetCol <- md.define$q.startMDcol + (j-1) * md.define$md.item.k - 1
 
