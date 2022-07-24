@@ -111,7 +111,8 @@ md.hb <- function(md.define,
   ##
   set.seed(mcmc.seed)
   cmr.out <- choicemodelr(data=cmr.block,
-                          xcoding=tmp.coding, mcmc=tmp.mcmc, options=tmp.opt)
+                          xcoding=tmp.coding, mcmc=tmp.mcmc, options=tmp.opt,
+                          directory=getwd())
 
 
   ## .7: get the betas per respondent

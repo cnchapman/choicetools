@@ -257,5 +257,38 @@ if (FALSE) {
 #############################################################################
 #############################################################################
 
-# MAXDIFF TESTS
+### MAXDIFF TESTS
+
+### Read sample "Pizza" data
+library(choicetools)
+md.define <- parse.md.qualtrics("./inst/extdata/qualtrics-pizza-maxdiff.csv",
+                                returnList = TRUE)
+
+test.read          <- read.md.qualtrics(md.define) # read Qualtrics data
+md.define$md.block <- test.read$md.block        # save the data back into our study object
+
+# check some data
+md.define$md.block[1:10, c(1:3, 5, 6, 10, 13:16)]
+
+### HB estimation and save the results
+set.seed(98121)
+test.hb <- md.hb(md.define, mcmc.iters = 25000)       # estimation (note: set mcmc.iters appropriately)
+md.define$md.model.hb    <- test.hb$md.model          # save the results into our study object
+md.define$md.hb.betas    <- test.hb$md.hb.betas       # raw utilities by individual
+md.define$md.hb.betas.zc <- test.hb$md.hb.betas.zc    # zero-centered diff scores by individual (rec'd)
+rm(test.hb)
+summary(md.define$md.hb.betas.zc)
+
+
+### Plots
+
+# plot -- sample averages & CIs
+plot.md.range(md.define) +
+  theme_minimal() +
+  xlab("Pizza Toppings")
+
+# plot -- individual-level estimates & distribution
+plot.md.indiv(md.define) +                       # create plot of HB model with individual mean betas
+  theme_minimal() +
+  ylab("Pizza Toppings")
 

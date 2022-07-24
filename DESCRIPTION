@@ -1,7 +1,7 @@
 Package: choicetools
 Type: Package
 Title: Tools for Choice Modeling, Conjoint Analysis, and MaxDiff analysis of Best-Worst Surveys
-Version: 0.0.0.9080
+Version: 0.0.0.9081
 Author: Chris Chapman, Eric Bahna, James Alford, Steven Ellis
 Maintainer: Chris Chapman <cchapman+choice@google.com>
 Description: Functions to read or simulate data, estimate models, perform
