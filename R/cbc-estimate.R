@@ -206,7 +206,8 @@ estimateMNLfromDesignHB <- function(tmp.des, tmp.win,
 
   # be sure to display graphics window to see convergence plot
   # ... and run it!
-  cmr.out <- choicemodelr(data=tmp.des2, xcoding=tmp.coding, mcmc=tmp.mcmc, options=tmp.opt)
+  cmr.out <- choicemodelr(data=tmp.des2, xcoding=tmp.coding, mcmc=tmp.mcmc, options=tmp.opt,
+                          directory=getwd())
 
   return(cmr.out)
 }
