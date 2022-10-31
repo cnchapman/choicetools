@@ -507,3 +507,50 @@ md.plot.logit <- function(md.define, item.disguise=FALSE) {
 }
 
 
+#############################################################
+#
+#  plot.md.counts(md.define)
+#
+#  Plots counts of Best, Worst, and Best-Worst
+#  Counts are normalized to how many times each item was shown
+#
+#  md.define     : study object with answers formatted in an "md.block"
+#                  as read by the data import functions in this package
+
+plot.md.counts <- function(md.define) {
+  if (is.null(md.define$md.block)) {
+    stop("Could not find md.block matrix within the md.define object. Make sure data have been loaded first.")
+  }
+  exclude.cols <- c("win", "resp.id", "Block", "sys.resp", "Set", "choice.coded")
+  item.cols    <- names(md.define$md.block)
+  item.cols    <- item.cols[!item.cols %in% exclude.cols]
+
+  best.appear <- colSums(md.define$md.block[md.define$md.block$Set=="Best", item.cols])
+  best.win    <- colSums(md.define$md.block[md.define$md.block$Set=="Best" &
+                                              md.define$md.block$win==1, item.cols])
+
+  worst.appear <- colSums(md.define$md.block[md.define$md.block$Set=="Worst", item.cols])
+  worst.win    <- colSums(md.define$md.block[md.define$md.block$Set=="Worst" &
+                                               md.define$md.block$win==1, item.cols])
+
+  item.scale  <- max(best.appear) / best.appear
+
+  md.counts <- data.frame(Item  = item.cols,
+                          Best  = best.win*item.scale,
+                          Worst = worst.win*item.scale)
+
+  library(ggplot2)
+  p <- ggplot(aes(x=reorder(Item, Best+Worst), y=Best),
+              data=md.counts) +
+    geom_col(alpha=0.3, color="darkgreen", fill="darkgreen") +
+    geom_col(aes(x=Item, y=Worst), alpha=0.3, color="darkred", fill="darkred") +
+    geom_point(aes(x=Item, y=Best+Worst), color="black", shape=19, size=1.5) +
+    coord_flip() +
+    ggtitle("Plot of MaxDiff Item Counts") +
+    ylab("Times chosen as Best and Worst (point=net)") +
+    xlab("Item")
+
+  p
+}
+
+

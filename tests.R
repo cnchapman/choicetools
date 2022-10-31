@@ -282,6 +282,9 @@ summary(md.define$md.hb.betas.zc)
 
 ### Plots
 
+# plot -- simple count analysis
+plot.md.counts(md.define)
+
 # plot -- sample averages & CIs
 plot.md.range(md.define) +
   theme_minimal() +
