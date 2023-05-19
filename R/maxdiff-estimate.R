@@ -32,6 +32,34 @@
 #  whatever size you prefer.
 #
 
+#' Hierarchical Bayes estimation for MaxDiff data
+#'
+#' @description Estimates a hierarchical Bayes (HB) model for MaxDiff observations.
+#' This is primarily a wrapper for \code{ChoiceModelR::choicemodelr} that
+#' formats the data, calls \code{choicemodelr}, and extracts the results.
+#'
+#' @param md.define The structured data with MaxDiff observations. This is
+#' typically created by an importing function such as \code{read.md.qualtrics()}
+#'
+#' @param mcmc.iters How many iterations to run the MCMC estimation process.
+#' Default is 1000 iterations (suitable only for testing), recommend 10000 or
+#' more for typical usage.
+#'
+#' @param pitersUsers The proportion of the MCMC chain to retain, from
+#' the end of the chain. Default 0.1 for 10% posterior draws.
+#'
+#' @param mcmc.seed Random number seed to make the process repeatable. Default
+#' is that the function will draw a random number to be the seed and report it.
+#'
+#' @returns Returns a list with the following objects: \code{md.model.hb} is the
+#' result from a call to \code{choicemodelr} to estimate the model;
+#' \code{md.hb.betas} are the raw multinomial logit model beta coefficients;
+#' and \code{md.hb.betas.zc} are zero-centered difference scores that may
+#' be more interpretable for stakeholder audiences. Use \code{plot.md.range()}
+#' to plot the aggregate results, or \code{plot.md.indiv()} to plot the
+#' individual-level results, or \code{plot.md.group()} to compare
+#' distributions by categorical groups such as demographic or treatment groups.
+#'
 md.hb <- function(md.define,
                   mcmc.iters=1000, pitersUsed = 0.1,
                   mcmc.seed=runif(1, min=0, max=1e8), restart=FALSE) {
@@ -208,6 +236,37 @@ md.hb <- function(md.define,
 #                  (recommended, as it may fail otherwise)
 #
 
+#' Estimate MaxDiff utilities quickly with an aggregate logit model
+#'
+#' @description
+#' \code{md.quicklogit} is intended to give a quick check to see whether
+#' your data are structure correctly and have reasonable estimates,
+#' before investing time to run a hierarchical Bayes model (\code{md.hb()}).
+#' A common error is to have the values reversed for the "best" and "worst"
+#' observations. That will appear in the results with obviously preferred
+#' items showing low preference, while poor items show high preference.
+#'
+#' The fix in that case is to relabel those data points such that the
+#' "best" items' value
+#' is greater than the value for the worst items (the exact values don't
+#' matter). For example, if your data accidentally code best as 1, and worst
+#' as 2, you could replace all of the best observations with a value of 3.
+#' Then run \code{md.quicklogit} again.
+#'
+#' Note that \code{md.quicklogit} drops 1 item for model identification, and
+#' thus reports K-1 estimates. For example, if you have 15 items you will
+#' see 14 estimated parameters in a summary of the return object.
+#'
+#' @param md.define A study object as documented for \code{parse.md.qualtrics()}
+#' @param preadapt.only An experimental parameter for adaptive models, to be
+#' documented in the future. For now, leave this as \code{TRUE}.
+#'
+#' @return A model object from \code{mlogit::mlogit()} with parameter estimates
+#' for K-1 levels of your MaxDiff items. Use \code{md.plot.logit()} to plot
+#' the results.
+#'
+#' @seealso [md.hb()] for the recommended hierarchical Bayes estimation.
+#'
 md.quicklogit <- function(md.define, preadapt.only=TRUE) {
   md.block <- md.define$md.block
   rownames(md.block) <- paste0("r", 1:nrow(md.block))

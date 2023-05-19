@@ -7,14 +7,15 @@
 
 # FUNCTIONS
 #   estimateMNLattrImpact()   :
-#
 #   bootstrapMNLfromDesign()  :
 #
 
 #############################################
 # estimateMNLattrImpact
 #############################################
-# function(df.in, cards.win, attrLevels, cards=3, n.samples=10, sample.prob = 0.67, start.pws=NULL, base.rate=NULL, imp.method="shuffle", stop.limit=1e-5, stop.iters=100, verbose=TRUE, no.output=FALSE)
+# function(df.in, cards.win, attrLevels, cards=3, n.samples=10,
+#          sample.prob = 0.67, start.pws=NULL, base.rate=NULL,
+#          imp.method="shuffle", stop.limit=1e-5, stop.iters=100, verbose=TRUE, no.output=FALSE)
 #
 # Calculates several measures of the "importance" of attributes in observed MNL prediction accuracy
 #
@@ -47,8 +48,10 @@
 #   Col 7 = "pct.of.TAD"    =  proportion this attribute represents, compared to sum of all attributes' absolute deviations
 #                              i.e., deviationI / sum(abs(deviationALL))
 # NOTES
-#   1. The authors suggest using col 7 as an indicator of "impact" -- it sums to 1 across attributes, but is not zero-bounded for impact (negative impact is possible)
-#   2. If you don't want pre-bootstrapped results, then set n.samples = 1, call this function inside a loop, and then work with the k=1 individual sample results
+#   1. The authors suggest using col 7 as an indicator of "impact" -- it sums
+#      to 1 across attributes, but is not zero-bounded for impact (negative impact is possible)
+#   2. If you don't want pre-bootstrapped results, then set n.samples = 1,
+#      call this function inside a loop, and then work with the k=1 individual sample results
 #
 # ######################################################
 # SAMPLE CODE
@@ -74,7 +77,8 @@ if (FALSE) {
 
 estimateMNLattrImpact <- function(df.in, cards.win, attrLevels, cards=3, trials=8, resp=200,
                                   n.samples=10, sample.prob = 0.67,
-                                  start.pws=NULL, base.rate=NULL, imp.method="shuffle", est.method="aggregate",
+                                  start.pws=NULL, base.rate=NULL, imp.method="shuffle",
+                                  est.method="aggregate",
                                   stop.limit=1e-5, stop.iters=100, verbose=TRUE, no.output=FALSE)
 {
   if (is.null(start.pws)) {

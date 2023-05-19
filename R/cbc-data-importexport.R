@@ -82,8 +82,6 @@ findSSIattrs <- function(df.in) {
 }
 
 
-
-
 #########################
 # writeCBCdesignCSV()
 #########################
@@ -173,7 +171,6 @@ writeCBCdesignCSV <- function(tab.in=NULL, filename="", overwrite=FALSE, cards=3
     close(file.con)
   }
 }
-
 
 
 #########################

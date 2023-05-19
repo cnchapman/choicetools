@@ -1,0 +1,30 @@
+#' choicetools: Utility functions for conjoint analysis and MaxDiff.
+#'
+#' This package has a mixture of didactic functions for choice-based
+#' conjoint analysis and production functions for MaxDiff data, especially
+#' for working with MaxDiff data from Qualtrics surveys.
+#'
+#' @section Choice-based Conjoint Analysis:
+#' For choice-based conjoint analysis (CBC), choicetools provides didactic
+#' functions to create a CBC
+#' experimental design, to make a "survey" in CSV format that implements those
+#' designs
+#' and may be completed using a simple spreadsheet editor (such as Google
+#' Sheets), to import respondents' answers from such a sheet (as CSV), and
+#' to estimate the CBC utilities.
+#' These functions are probably most useful in a classroom setting to
+#' demonstrate how CBC works, or as part of an analyst pre-testing a survey
+#' design for their own purposes before implementing it in a commercial
+#' platform.
+#'
+#' There is experimental code for CBC to determine the attribute importance
+#' of CBC attributes.
+#'
+#' @section MaxDiff:
+#'
+#' @section Other Functions:
+#'
+#'
+#' @docType package
+#' @name choicetools
+NULL

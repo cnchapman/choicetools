@@ -48,11 +48,44 @@
 # a design with 10 attributes of 3-7 levels
 #   tmp.attrs  <- c(4,3,4,5,5,3,4,5,2,7)
 # create random CBC cards for that design
-#   tmp.tab    <- generateMNLrandomTab(tmp.attrs,respondents=200,trials=8)
+#   tmp.tab    <- generateMNLrandomTab(tmp.attrs, respondents=200, trials=8)
 # convert those to a design-coded dummy matrix
 #   tmp.des    <- convertSSItoDesign(tmp.tab)
 #
 
+#' Simple experimental design for choice-based conjoint analysis
+#'
+#' @description
+#' Create an experimental design for an exactly rectangular version of
+#' choice-based conjoint analysis (same number of concepts and trials
+#' for every respondent).
+#' This function is recommended primarily for simple surveys and
+#' didactic purposes; it does not do advanced optimization.
+#' It will attempt to find level balance through iterative selection across
+#' multiple randomized designs.
+#'
+#' @param attrLevels A vector of integers, where each integer is the number of
+#' levels for its respective attribute. For example, if a product has 3
+#' brands, 4 performance levels, and 3 price points, this would be
+#' \code{c(3, 4, 3)}.
+#' @param cards The number of concepts to show at one time.
+#' @param respondents The number of designs to generate.
+#' @param trials How many tasks will be given to each respondent
+#' @param balanced.sample Whether to attempt to do level balancing across
+#' attributes, i.e., to have fewer duplications of any level on a given
+#' task.
+#' @param best.of How many iterations to consider before selecting the
+#' optimized one.
+#' @param verbose Outputs more information as it works.
+#' @param no.output Whether to suppress all output.
+#'
+#' @returns A data frame for the experimental design, with a row for
+#' each respondent * trial * concept, with columns for the attribute levels.
+#'
+#' @seealso [generateRNDpws] to create a set of random utilities for
+#' a specific attribute list, [pickMNLwinningCards] to "answer" the survey
+#' design according to utilities.
+#'
 generateMNLrandomTab <- function(attrLevels, cards=3, respondents=200,
                                  trials=12, balanced.sample=TRUE, best.of=50,
                                  verbose=TRUE, no.output=FALSE)
@@ -144,18 +177,44 @@ generateMNLrandomTab <- function(attrLevels, cards=3, respondents=200,
 # OUTPUT
 #  a vector of the winning cards for the design
 
-pickMNLwinningCards <- function(design.mat, pws=rep(0,ncol(design.mat)),
+#' Choose the winning concepts in a CBC design matrix, according to utilities
+#'
+#' @param design.mat A design matrix as created by \code{generateMNLrandomTab}
+#' @param pws A vector of utility coefficients for each column in
+#' \code{design.mat}. If missing, these are set to 0 and all winners will be
+#' drawn randomly.
+#' @param cards How many concepts are seen on each trial in the design matric.
+#' @param noise Whether to randomly make some choices (instead of using the
+#' utilties)
+#' @param p.noise The odds of randomly choosing a winner (instead of using
+#' the utilities)
+#' @param use.MNL Not used currently, placeholder for future.
+#' @param verbose Whether to output information as it runs.
+#' @param vec.format "WIN" will mark the winning row in the design matrix
+#' with a "1" and all others with "0". This would match a typical regression
+#' model to estimate coefficients from the observations.
+#' "ANS" will put the row number of the winning concept into the rows for
+#' each trial; some other software expects that format.
+#'
+#' @return A vector identifying which concept won each trial, according to the
+#' design matrix and supplied utilities.
+#' @seealso [generateMNLrandomTab] to create a design matrix,
+#' [generateRNDpws] to create a random set of utilities.
+#'
+
+pickMNLwinningCards <- function(design.mat, pws=rep(0, ncol(design.mat)),
                                 cards=3, noise=FALSE, p.noise=0.3,
                                 use.MNL=TRUE,                         ## to do -- choose according to MNL roulette
                                 verbose=TRUE, vec.format="WIN")
 {
   # how many sets of comparisons are there?
   n.trial <- nrow(design.mat)/cards
-  vec.win <- rep(0,n.trial)
+  vec.win <- rep(0, n.trial)
   ## pws.mat <- as.matrix(pws)      ##  ** TO DO: handle vector OR a matrix
   pws.mat <- pws
 
   # iterate over every set of comparisons and find the winner
+  # ** TO DO
   # ** would be nice to vectorize this -- [chris] see preference share prediction routines in portfolio model code
   for (i in 1:n.trial)
   {
@@ -208,6 +267,22 @@ pickMNLwinningCards <- function(design.mat, pws=rep(0,ncol(design.mat)),
 # OUTPUT
 #    a vector of zero-centered (within attribute) random normal partworths (mean=mu, sd=stdev)
 #
+
+
+#' Generate some zero-centered part worths (utilities) for CBC design
+#'
+#' @param attrs A vector with the attribute/level design, as noted for
+#' \code{generateMNLrandomTab}#'
+#' @param mu The mean of the random utilities
+#' @param sdev Standard deviation of the utilities
+#'
+#' @returns A vector of random values that sum to 0 for each subset of values
+#' that correspond to one attribute in a CBC attribute/level design.
+#'
+#' @seealso [generateMNLrandomTab] to create a design matrix,
+#' [pickMNLwinningCards] to select the winning concepts from it, given
+#' some set of utilities (as from this function).
+
 generateRNDpws <- function(attrs, mu=0, sdev=1)
 {
   pw.vec <- NULL

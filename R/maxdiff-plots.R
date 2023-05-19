@@ -1,6 +1,10 @@
-# Copyright 2019 Google LLC.
+# Initial open source portions were copyright 2019 Google LLC.
 # SPDX-License-Identifier: Apache-2.0
 
+# Author: Chris Chapman
+# Update: May 2023
+
+############################
 # MaxDiff plots
 
 #############################################################
@@ -12,12 +16,38 @@
 #
 #  md.define     : study object, with ...$md.hb.betas[.zc] present from md.hb()
 #  use.raw       : use $md.hb.betas instead of zero-centered diffs, $md.hb.betas.zc
-#  item.disguise : default FALSE. Should the labels be replace with generic
+#  item.disguise : default FALSE. Should the labels be replaced with generic
 #                  names? Useful for redacted presentations.
 #  plot.zero     : whether to plot dotted vertical line at X=0 (default FALSE)
 #                  (was the default as plotted through v0.70)
 #
 
+#' Plot sample level averages and CIs for MaxDiff utilities
+#'
+#' @param md.define A MaxDiff study object that contains individual-level
+#' utility estimates present in a member called \code{$md.hb.betas} or
+#' \code{$md.hb.betas.zc}.
+#' Typically those are estimated created by \code{md.hb()} in this package.
+#'
+#' These data also be imported or created
+#' by any other process, as long as they are rectangular with items in the
+#' columns and respondents in the rows, and there is an "ID" column with
+#' unique respondent identifies for each row. For example, if you export
+#' data from Sawtooth Software or some other platform, you could load
+#' and plot it with this function; just create an object
+#' \code{md.define$md.hb.betas} with the estimates and an ID column.
+#'
+#' @param use.raw Whether to use raw MNL beta coefficients \code{$md.hb.betas},
+#' if present, or some transformed e.g., zero-centered diff, version of them
+#' present in \code{$md.hb.betas}
+#' @param item.disguise Remove the item labels and number them generically.
+#' This is included to make it easy to share and show results at a conference
+#' or other audience when the underlying details are confidential.
+#' @param plot.zero Plot a vertical line for zero (the point of indifference),
+#' which only applies for raw beta utilities.
+#'
+#' @return A ggplot2 object with the plot.
+#'
 plot.md.range <- function(md.define, use.raw=FALSE,
                           item.disguise=FALSE, plot.zero=FALSE) {
   if (use.raw & is.null(md.define$md.hb.betas)) {
@@ -93,7 +123,7 @@ plot.md.range <- function(md.define, use.raw=FALSE,
 #
 #  md.define     : study object, with ...$md.hb.betas[.zc] present from md.hb()
 #  use.raw       : use $md.hb.betas instead of zero-centered diffs, $md.hb.betas.zc
-#  item.disguise : default FALSE. Should the labels be replace with generic
+#  item.disguise : default FALSE. Should the labels be replaced with generic
 #                  names? Useful for redacted presentations.
 #  plot.zero     : plot dotted line at X-axis preference == 0 ?
 #  plot.density  : whether to use ggridges to draw density curves (default)
@@ -102,6 +132,42 @@ plot.md.range <- function(md.define, use.raw=FALSE,
 #  ran.seed      : random number seed, if you don't want the default
 #                  used to make the point jitter/fill consistent
 #
+
+#' Plot individual-level estimates (density) for MaxDiff utilites
+#'
+#' This plot shows each individual's estimates as a blue circle for
+#' each item, and allows visual inspection of the degree of dispersion
+#' and general density properties of the estimates.
+#' The sample level mean value is plotted as a red box.
+#'
+#' @param md.define A MaxDiff study object that contains individual-level
+#' utility estimates present in a member called \code{$md.hb.betas} or
+#' \code{$md.hb.betas.zc}.
+#' Typically those are estimated created by \code{md.hb()} in this package.
+#'
+#' These data also be imported or created
+#' by any other process, as long as they are rectangular with items in the
+#' columns and respondents in the rows, and there is an "ID" column with
+#' unique respondent identifies for each row. For example, if you export
+#' data from Sawtooth Software or some other platform, you could load
+#' and plot it with this function; just create an object
+#' \code{md.define$md.hb.betas} with the estimates and an ID column.
+#'
+#' @param use.raw Whether to use raw MNL beta coefficients \code{$md.hb.betas},
+#' if present, or some transformed e.g., zero-centered diff, version of them
+#' present in \code{$md.hb.betas}
+#' @param item.disguise Remove the item labels and number them generically.
+#' This is included to make it easy to share and show results at a conference
+#' or other audience when the underlying details are confidential.
+#' @param plot.zero Plot a vertical line for zero (the point of indifference),
+#' which only applies for raw beta utilities.
+#' @param plot.density Whether to draw density lines
+#' @param plot.mean Whether to add the sample mean value as a red box
+#' @param ran.seed RNG seed for the minor jittering that is added to the plot
+#' for better filling of the density areas.
+#'
+#' @return A ggplot2 object with the plot.
+#'
 
 plot.md.indiv <- function(md.define, use.raw=FALSE,
                           item.disguise=FALSE, plot.zero=FALSE,
@@ -276,7 +342,7 @@ plot.md.heatmap <- function(md.define,
 #   vec.groups     : membership vector for each respondent. Must be coercible
 #                      to factor variable (such as a vector of character strings)
 #   groups.to.plot : optional. Among vec.groups, which ones should we plot?
-#   item.disguise  : optional. Replace actual item names with numbers?
+#   item.disguise  : optional. Replace actual item names with generic numbers?
 #   use.raw        : optional. Use raw utilities instead of zero-center diffs?
 #   item.order     : optional. Vector of positions to sort the items. Defaults to
 #                      the order of the overall mean beta across groups. See
@@ -403,13 +469,6 @@ plot.md.relevant <- function(md.define, item.disguise=FALSE,
   item.status[md.define$md.csvdata[ , tasks.rel] == code.rel &
                 md.define$md.csvdata[ , tasks.unimp] == code.imp]   <- "Relevant.and.Important"
 
-
-
-
-
-
-
-
   tasks.grid.rel   <- colMeans(na.omit(md.define$md.csvdata[ , tasks.rel]==code.rel))
   tasks.grid.irrel <- 1-tasks.grid.rel
 
@@ -428,8 +487,6 @@ plot.md.relevant <- function(md.define, item.disguise=FALSE,
 
     tasks.grid <- data.frame(Task=paste0("i", 1:length(md.define$md.item.names)),
                              Relevant                = tasks.grid.rel )
-
-
 
   # if (item.disguise) {
   #   tasks.grid <- data.frame(Task=paste0("i", 1:length(md.define$md.item.names)),
@@ -473,9 +530,28 @@ plot.md.relevant <- function(md.define, item.disguise=FALSE,
 #
 #  md.define     : study object with results from md.quicklogit() present in
 #                  an ...$md.model.logit object
-#  item.disguise : default FALSE. Should the labels be replace with generic
+#  item.disguise : default FALSE. Should the labels be replaced with generic
 #                  names? Useful for redacted presentations.
 
+#' Plot aggregate logit model from quick estimation of MaxDiff utilities
+#'
+#' This gives a quick plot of results from \code{md.quicklogit()} to check
+#' whether one's data looks reasonable before running hierarchical Bayes
+#' estimation. See \code{md.quicklogit()} for details.
+#' A good alternative is a simple plot of best and worst counts,
+#' as done by \code{plot.md.counts()}
+#'
+#' @param md.define A MaxDiff study object that contains aggregate
+#' utility estimates in an object member called \code{$md.model.logit},
+#' as estimated by \code{md.quicklogit()} in this package.
+#'
+#' @param item.disguise Remove the item labels and number them generically.
+#' This is included to make it easy to share and show results at a conference
+#' or other audience when the underlying details are confidential.
+#'
+#' @return A ggplot2 object plotting the CI ranges for each item, as
+#' estimated by \code{md.quicklogit()}.
+#'
 md.plot.logit <- function(md.define, item.disguise=FALSE) {
 
   if (is.null(md.define$md.model.logit)) {
@@ -509,15 +585,42 @@ md.plot.logit <- function(md.define, item.disguise=FALSE) {
 
 #############################################################
 #
-#  plot.md.counts(md.define)
+#  plot.md.counts(md.define, item.disguise=FALSE)
 #
 #  Plots counts of Best, Worst, and Best-Worst
 #  Counts are normalized to how many times each item was shown
 #
 #  md.define     : study object with answers formatted in an "md.block"
 #                  as read by the data import functions in this package
+#  item.disguise : default FALSE. Should the labels be replaced with generic
+#                  names? Useful for redacted presentations.
 
-plot.md.counts <- function(md.define) {
+#' Plot best, worst, and net counts from MaxDiff data
+#'
+#' This plot shows how often each item was chosen as best and as worst, and
+#' shows the difference between those (the net count).
+#' This is a simple descriptive alternative to logit model estimation
+#' of MaxDiff values and generally corresponds extremely closely with
+#' aggregate and upper-level model estimates from multinomial regression
+#' and hierarchical Bayes estimation.
+#'
+#' In the case that some items were shown more or less often than others,
+#' regardless of whether they were chosen as best or worst or neither,
+#' the counts here are rescaled to make the relative proportions equivalent.
+#' For example, if one item appeared 1000 times but other items appeared only
+#' 800 times each, then the counts for those other items would be multiplied by
+#' 1.25 to account for the effective "proportion of times shown", compared
+#' to the item with 1000 appearances.
+#'
+#' @param md.define A MaxDiff study object with \code{$md.block} data,
+#' as imported by \code{read.md.qualtrics()} or \code{read.md.cho()}.
+#' @param item.disguise Remove the item labels and number them generically.
+#' This is included to make it easy to share and show results at a conference
+#' or other audience when the underlying details are confidential.
+#'
+#' @return A ggplot2 chart with the best, worst, and net counts.
+
+plot.md.counts <- function(md.define, item.disguise=FALSE) {
   if (is.null(md.define$md.block)) {
     stop("Could not find md.block matrix within the md.define object. Make sure data have been loaded first.")
   }
@@ -539,6 +642,10 @@ plot.md.counts <- function(md.define) {
                           Best  = best.win*item.scale,
                           Worst = worst.win*item.scale)
 
+  if (item.disguise) {
+    md.counts$Item <- paste0("i", 1:nrow(md.counts))
+  }
+
   library(ggplot2)
   p <- ggplot(aes(x=reorder(Item, Best+Worst), y=Best),
               data=md.counts) +
@@ -548,8 +655,7 @@ plot.md.counts <- function(md.define) {
     coord_flip() +
     ggtitle("Plot of MaxDiff Item Counts") +
     ylab("Times chosen as Best and Worst (point=net)") +
-    xlab("Item")
-
+    xlab(ifelse(item.disguise, "Item (Disguised)", "Item"))
   p
 }
 

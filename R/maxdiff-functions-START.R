@@ -3,25 +3,13 @@
 
 #############################################################
 # maxdiff-functions-START.R
-# version 0.0.9071
 #
-#
-# THIS FILE IS ONLY FOR EDITS THAT GO INTO CHOICETOOLS PACKAGE
-#
-#
-# Chris Chapman, cchapman@google.com
-# January 2019
-#
-# check with cchapman@ for any updates or canonical location ... this is point in time code
-# updated January 28, 2019
+# Author: Chris Chapman
+# November 2022
 #
 # NOTE ON OPEN SOURCE
 # These functions are patches to the open source Rcbc.R (https://goo.gl/oK78kw)
 # and will be reverse-integrated into Rcbc.R periodically.
-#
-# thanks to: ercan@ for assistance and bug fixes with mlogit models
-#            bahna@ for help with adaptive model theory and testing
-#            jamesalford@ for testing and integration with shiny implementation
 #
 # LICENSE (Apache 2.0)
 # This software is free and open source under Apache License 2.0
